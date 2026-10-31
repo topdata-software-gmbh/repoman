@@ -12,3 +12,4 @@ Architecture Decision Records for RepoMan.
 - [ADR__261030-3__git-actions-declared-in-embedded-yaml-template.md](ADR__261030-3__git-actions-declared-in-embedded-yaml-template.md) — Git actions declared in an embedded YAML template that drives execution and the log.
 - [ADR__261030-4__typed-event-bus-for-desktop-and-web.md](ADR__261030-4__typed-event-bus-for-desktop-and-web.md) — Typed application event bus shared by desktop events and one SSE endpoint.
 - [ADR__261031-1__app-owned-translations-and-dictionary-free-kit.md](ADR__261031-1__app-owned-translations-and-dictionary-free-kit.md) — App-owned translations with a dictionary-free UI kit.
+- [ADR__261101-1__scan-progress-streaming-over-typed-event-bus.md](ADR__261101-1__scan-progress-streaming-over-typed-event-bus.md) — Stream scan progress (started/found/tick/inspected/done) over the typed event bus.
