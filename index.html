@@ -1,18 +1,22 @@
 <!doctype html>
-<html lang="en">
+<html lang="de">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
-    <title>Git Repo Manager</title>
+    <title>RepoMan</title>
     <script>
       (function () {
         try {
           var stored = localStorage.getItem('topdata.theme.v1');
           document.documentElement.dataset.theme =
             stored === 'dark' || stored === 'light' ? stored : 'light';
+
+          var language = localStorage.getItem('topdata.language.v1');
+          document.documentElement.lang = language === 'en' ? 'en' : 'de';
         } catch (error) {
           document.documentElement.dataset.theme = 'light';
+          document.documentElement.lang = 'de';
         }
       })();
     </script>

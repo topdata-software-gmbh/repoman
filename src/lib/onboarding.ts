@@ -86,9 +86,10 @@ export function suggestGroups(
   repoPaths: string[],
   scanRoot: string,
   style: GroupingStyle,
+  fallbackRootName = 'Projects',
 ): SuggestedGroup[] {
   const root = normalizePath(scanRoot);
-  const rootName = baseName(root) || 'Projects';
+  const rootName = baseName(root) || fallbackRootName;
 
   if (style === 'single') {
     return repoPaths.length > 0

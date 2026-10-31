@@ -1,5 +1,5 @@
 [package]
-name = "git-repo-manager"
+name = "repoman"
 version = "0.1.0"
 description = "Multi-Git GUI Manager"
 edition = "2021"

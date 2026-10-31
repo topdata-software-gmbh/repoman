@@ -1838,7 +1838,7 @@ Optionally smoke-test web mode:
 
 ```bash
 cargo build --manifest-path src-tauri/Cargo.toml --release
-./src-tauri/target/release/git-repo-manager \
+./src-tauri/target/release/repoman \
   --web --port 8799 --token onboarding-smoke \
   --config /tmp/repo-manager-onboarding-smoke.json --dist ./dist
 ```

@@ -29,7 +29,7 @@ mprocs keys:
   Tab / arrows          Switch panes.
 
 Prerequisites: pnpm, cargo, mprocs, and installed dependencies in both
-repo-manager and ../topdata-design-system.
+repoman and ../topdata-design-system.
 EOF
 }
 
@@ -72,12 +72,12 @@ require_command mprocs
 
 if [ -z "$DESIGN_SYSTEM_ROOT" ] || [ ! -d "$KIT_DIR" ]; then
   echo "ERROR: ../topdata-design-system with packages/ui-kit-web-vue3 was not found." >&2
-  echo "       repo-manager links the design system from a sibling checkout." >&2
+  echo "       repoman links the design system from a sibling checkout." >&2
   exit 1
 fi
 
 if [ ! -d "$PROJECT_ROOT/node_modules" ]; then
-  echo "ERROR: repo-manager dependencies are missing." >&2
+  echo "ERROR: repoman dependencies are missing." >&2
   echo "       Run: pnpm install" >&2
   exit 1
 fi

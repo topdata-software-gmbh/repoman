@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { BookOpen, FolderPlus, GitBranch, Search } from 'lucide-vue-next';
 import { TdButton, TdInput } from '@topdata-software-gmbh/ui-kit-web-vue3';
 import RepoListTable from './RepoListTable.vue';
+import { t } from '../lib/i18n';
 import { useRepoStore } from '../stores/repoStore';
 
 const store = useRepoStore();
@@ -27,14 +28,14 @@ const hasScanPaths = computed(() => store.config.scanPaths.length > 0);
         <TdInput
           v-model="search"
           type="search"
-          placeholder="Search projects…"
-          aria-label="Search projects"
+          :placeholder="t('table.searchPlaceholder')"
+          :aria-label="t('table.searchLabel')"
         >
           <template #prefix><Search class="h-3.5 w-3.5 text-fg-muted" /></template>
         </TdInput>
       </div>
       <span v-if="search.trim()" class="shrink-0 text-[11px] text-fg-muted">
-        {{ rows.length }} of {{ store.filteredRepositories.length }}
+        {{ t('common.of', { current: rows.length, total: store.filteredRepositories.length }) }}
       </span>
     </div>
 
@@ -59,18 +60,17 @@ const hasScanPaths = computed(() => store.config.scanPaths.length > 0);
         </div>
 
         <template v-if="!hasScanPaths">
-          <h2 class="text-[15px] font-semibold text-fg">Let's find your projects</h2>
+          <h2 class="text-[15px] font-semibold text-fg">{{ t('empty.findProjects.title') }}</h2>
           <p class="mt-1.5 max-w-md text-sm leading-relaxed text-fg-muted">
-            Choose the folder where your themes and projects live. We will look inside it and add
-            every Git project we find.
+            {{ t('empty.findProjects.text') }}
           </p>
           <div class="mt-4 flex items-center gap-2">
             <TdButton variant="primary" @click="store.openAddScanPath">
-              Add folder
+              {{ t('empty.addFolder') }}
             </TdButton>
             <TdButton variant="ghost" @click="store.openHelp">
               <template #icon-left><BookOpen /></template>
-              How this works
+              {{ t('empty.howThisWorks') }}
             </TdButton>
           </div>
         </template>
@@ -78,34 +78,32 @@ const hasScanPaths = computed(() => store.config.scanPaths.length > 0);
         <template
           v-else-if="store.selectedGroupId !== 'all' && store.filteredRepositories.length === 0"
         >
-          <h2 class="text-[15px] font-semibold text-fg">No projects in this group</h2>
+          <h2 class="text-[15px] font-semibold text-fg">{{ t('empty.noProjectsInGroup.title') }}</h2>
           <p class="mt-1.5 max-w-md text-sm leading-relaxed text-fg-muted">
-            Add projects to <span class="text-fg">{{ store.currentGroup?.name }}</span> to use the
-            buttons above for the whole group.
+            {{ t('empty.noProjectsInGroup.text', { group: store.currentGroup?.name ?? '' }) }}
           </p>
           <TdButton class="mt-4" variant="primary" @click="store.openGroupEditor(store.currentGroup)">
-            Edit group
+            {{ t('empty.editGroup') }}
           </TdButton>
         </template>
 
         <template v-else-if="store.filteredRepositories.length === 0">
-          <h2 class="text-[15px] font-semibold text-fg">No Git projects found</h2>
+          <h2 class="text-[15px] font-semibold text-fg">{{ t('empty.noGitProjects.title') }}</h2>
           <p class="mt-1.5 max-w-md text-sm leading-relaxed text-fg-muted">
-            We looked inside your folders but did not find a Git project. Check that the folder is
-            correct, or add another folder.
+            {{ t('empty.noGitProjects.text') }}
           </p>
           <div class="mt-4 flex gap-2">
-            <TdButton variant="secondary" @click="store.scanRepositories">Look again</TdButton>
+            <TdButton variant="secondary" @click="store.scanRepositories">{{ t('empty.lookAgain') }}</TdButton>
             <TdButton variant="primary" @click="store.openAddScanPath">
-              Add folder
+              {{ t('empty.addFolder') }}
             </TdButton>
           </div>
         </template>
 
         <template v-else>
-          <h2 class="text-[15px] font-semibold text-fg">No matching projects</h2>
-          <p class="mt-1.5 text-sm text-fg-muted">Try a different search, or clear the filter.</p>
-          <TdButton class="mt-4" variant="ghost" @click="search = ''">Clear search</TdButton>
+          <h2 class="text-[15px] font-semibold text-fg">{{ t('empty.noMatch.title') }}</h2>
+          <p class="mt-1.5 text-sm text-fg-muted">{{ t('empty.noMatch.text') }}</p>
+          <TdButton class="mt-4" variant="ghost" @click="search = ''">{{ t('empty.clearSearch') }}</TdButton>
         </template>
       </div>
     </div>

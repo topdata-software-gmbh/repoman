@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { backend } from '../lib/backend';
+import { t, tPlural, type MessageKey } from '../lib/i18n';
 import {
   defaultOnboardingState,
   normalizeOwnerNames,
@@ -51,7 +52,7 @@ let nextToastId = 0;
 let branchRequestId = 0;
 
 const GIT_STEP_LIMIT = 200;
-const REPOSITORY_CACHE_KEY = 'git-repo-manager.repositories.v1';
+const REPOSITORY_CACHE_KEY = 'repoman.repositories.v1';
 
 function readRepositoryCache(): Repository[] {
   try {
@@ -72,15 +73,21 @@ function writeRepositoryCache(repositories: Repository[]): void {
   }
 }
 
-const ACTION_LABELS: Record<
-  'fetch' | 'pull' | 'push' | 'stash' | 'stash_pop',
-  string
+type GroupAction = 'fetch' | 'pull' | 'push' | 'stash' | 'stash_pop';
+
+const ACTION_COPY: Record<
+  GroupAction,
+  { success: MessageKey; failure: MessageKey; failed: MessageKey }
 > = {
-  fetch: 'Check for updates',
-  pull: 'Get latest',
-  push: 'Send changes',
-  stash: 'Set aside changes',
-  stash_pop: 'Bring back set-aside changes',
+  fetch: { success: 'toast.fetchDone', failure: 'toast.fetchFailure', failed: 'toast.fetchFailed' },
+  pull: { success: 'toast.pullDone', failure: 'toast.pullFailure', failed: 'toast.pullFailed' },
+  push: { success: 'toast.pushDone', failure: 'toast.pushFailure', failed: 'toast.pushFailed' },
+  stash: { success: 'toast.stashDone', failure: 'toast.stashFailure', failed: 'toast.stashFailed' },
+  stash_pop: {
+    success: 'toast.stashPopDone',
+    failure: 'toast.stashPopFailure',
+    failed: 'toast.stashPopFailed',
+  },
 };
 
 export const useRepoStore = defineStore('repo', () => {
@@ -210,15 +217,15 @@ export const useRepoStore = defineStore('repo', () => {
 
     const count = (predicate: (repo: Repository) => boolean): number =>
       list.filter(predicate).length;
-    const projectWord = (value: number): string => (value === 1 ? 'project' : 'projects');
 
     const missing = count((repo) => !repo.isAccessible);
     if (missing > 0) {
       return {
         tone: 'danger',
-        title: `${missing} ${projectWord(missing)} cannot be found`,
-        message:
-          'The folder may have been moved or renamed. Update the project folder or remove it from the scan list.',
+        title: t(missing === 1 ? 'insight.missing.one' : 'insight.missing.other', {
+          count: missing,
+        }),
+        message: t('insight.missing.text'),
         action: null,
       };
     }
@@ -227,11 +234,12 @@ export const useRepoStore = defineStore('repo', () => {
     if (conflicts > 0) {
       return {
         tone: 'danger',
-        title: `${conflicts} ${projectWord(conflicts)} need attention`,
-        message:
-          'Some files have conflicts. Open the project in your editor, fix the marked files, then click "Save to Git".',
+        title: t(conflicts === 1 ? 'insight.conflicts.one' : 'insight.conflicts.other', {
+          count: conflicts,
+        }),
+        message: t('insight.conflicts.text'),
         action: 'save',
-        actionLabel: 'Review changes',
+        actionLabel: t('insight.conflicts.action'),
       };
     }
 
@@ -239,9 +247,8 @@ export const useRepoStore = defineStore('repo', () => {
     if (busy > 0) {
       return {
         tone: 'warning',
-        title: 'A Git operation is still in progress',
-        message:
-          'Finish or cancel the merge, rebase, or cherry-pick in your editor before using the buttons here.',
+        title: t('insight.busy.title'),
+        message: t('insight.busy.text'),
         action: null,
       };
     }
@@ -250,9 +257,8 @@ export const useRepoStore = defineStore('repo', () => {
     if (detached > 0) {
       return {
         tone: 'warning',
-        title: 'You are not on a branch',
-        message:
-          'Switch to a branch below before saving changes. Otherwise new work can be hard to find later.',
+        title: t('insight.detached.title'),
+        message: t('insight.detached.text'),
         action: null,
       };
     }
@@ -261,14 +267,10 @@ export const useRepoStore = defineStore('repo', () => {
     if (dirty > 0) {
       return {
         tone: 'warning',
-        title:
-          dirty === 1
-            ? 'You have changes that are not saved to Git'
-            : `${dirty} projects have changes that are not saved to Git`,
-        message:
-          'Save them to Git to create a checkpoint. Your files stay where they are, and you can keep working afterwards.',
+        title: t(dirty === 1 ? 'insight.dirty.one' : 'insight.dirty.other', { count: dirty }),
+        message: t('insight.dirty.text'),
         action: 'save',
-        actionLabel: dirty === 1 ? 'Save to Git' : 'Save all to Git',
+        actionLabel: t(dirty === 1 ? 'insight.dirty.actionOne' : 'insight.dirty.actionOther'),
       };
     }
 
@@ -276,12 +278,12 @@ export const useRepoStore = defineStore('repo', () => {
     if (behind > 0) {
       return {
         tone: 'info',
-        title: behind === 1 ? 'An update is available' : 'Updates are available',
-        message: `${behind} ${projectWord(
-          behind,
-        )} can receive new work from the server. Get the latest changes before you start editing.`,
+        title: t(behind === 1 ? 'insight.behind.one' : 'insight.behind.other'),
+        message: t(behind === 1 ? 'insight.behind.text.one' : 'insight.behind.text.other', {
+          count: behind,
+        }),
         action: 'pull',
-        actionLabel: 'Get latest',
+        actionLabel: t('action.pull'),
       };
     }
 
@@ -289,12 +291,12 @@ export const useRepoStore = defineStore('repo', () => {
     if (ahead > 0) {
       return {
         tone: 'info',
-        title: 'You have work ready to send',
-        message: `${ahead} ${projectWord(
-          ahead,
-        )} have saved changes that are not on the server yet. Send them when you are ready.`,
+        title: t('insight.ahead.title'),
+        message: t(ahead === 1 ? 'insight.ahead.text.one' : 'insight.ahead.text.other', {
+          count: ahead,
+        }),
         action: 'push',
-        actionLabel: 'Send changes',
+        actionLabel: t('action.push'),
       };
     }
 
@@ -302,17 +304,16 @@ export const useRepoStore = defineStore('repo', () => {
     if (withoutRemote === list.length) {
       return {
         tone: 'success',
-        title: 'Your work is saved on this computer',
-        message:
-          'This project is not connected to a server, so there is nothing to send or receive.',
+        title: t('insight.localOnly.title'),
+        message: t('insight.localOnly.text'),
         action: null,
       };
     }
 
     return {
       tone: 'success',
-      title: 'Everything is up to date',
-      message: 'No unsaved changes and no updates waiting.',
+      title: t('insight.upToDate.title'),
+      message: t('insight.upToDate.text'),
       action: null,
     };
   });
@@ -352,15 +353,22 @@ export const useRepoStore = defineStore('repo', () => {
     return parts[parts.length - 1] ?? path;
   }
 
-  function summarizeResults(results: OperationResult[], verb: string): void {
+  function summarizeResults(
+    results: OperationResult[],
+    successTitle: string,
+    failureTitle: string,
+  ): void {
     if (results.length === 0) return;
 
     const failures = results.filter((result) => !result.success);
     if (failures.length === 0) {
       showToast(
         'success',
-        `${verb} complete`,
-        `${results.length} ${results.length === 1 ? 'project' : 'projects'} updated.`,
+        successTitle,
+        t('toast.resultCount', {
+          count: results.length,
+          projectWord: tPlural('common.project', results.length),
+        }),
       );
       return;
     }
@@ -368,15 +376,20 @@ export const useRepoStore = defineStore('repo', () => {
     const details = failures
       .slice(0, 4)
       .map((failure) => {
-        const firstLine = (failure.error ?? 'Unknown error').trim().split('\n')[0];
+        const firstLine = (failure.error ?? t('common.unknownError')).trim().split('\n')[0];
         return `${repoLabel(failure.repoPath)}: ${firstLine}`;
       })
       .join('\n');
-    const suffix = failures.length > 4 ? `\n…and ${failures.length - 4} more.` : '';
+    const suffix =
+      failures.length > 4 ? `\n${t('common.andMore', { count: failures.length - 4 })}` : '';
 
     showToast(
       'error',
-      `${verb} failed in ${failures.length}/${results.length}`,
+      t('toast.failedCount', {
+        title: failureTitle,
+        failed: failures.length,
+        total: results.length,
+      }),
       details + suffix,
     );
   }
@@ -398,7 +411,7 @@ export const useRepoStore = defineStore('repo', () => {
       configLoaded.value = true;
     } catch (error) {
       configLoaded.value = false;
-      showToast('error', 'Could not load configuration', String(error));
+      showToast('error', t('toast.loadConfigFailed'), String(error));
     }
   }
 
@@ -422,7 +435,7 @@ export const useRepoStore = defineStore('repo', () => {
       writeRepositoryCache(found);
       await loadGroupBranches();
     } catch (error) {
-      showToast('error', 'Could not look for projects', String(error));
+      showToast('error', t('toast.scanFailed'), String(error));
     } finally {
       isScanning.value = false;
     }
@@ -464,7 +477,7 @@ export const useRepoStore = defineStore('repo', () => {
     } catch (error) {
       if (requestId === branchRequestId) {
         groupBranches.value = [];
-        showToast('error', 'Could not list branches', String(error));
+        showToast('error', t('toast.branchesFailed'), String(error));
       }
     } finally {
       if (requestId === branchRequestId) {
@@ -473,9 +486,7 @@ export const useRepoStore = defineStore('repo', () => {
     }
   }
 
-  async function executeGroupAction(
-    action: 'fetch' | 'pull' | 'push' | 'stash' | 'stash_pop',
-  ): Promise<void> {
+  async function executeGroupAction(action: GroupAction): Promise<void> {
     const paths = filteredRepositories.value.map((repo) => repo.path);
     if (paths.length === 0) return;
 
@@ -484,26 +495,23 @@ export const useRepoStore = defineStore('repo', () => {
       const results = await backend.executeGroupAction(paths, action, 5);
       await Promise.all(paths.map((path) => refreshSingleRepo(path)));
       await loadGroupBranches();
-      summarizeResults(results, ACTION_LABELS[action]);
+      summarizeResults(results, t(ACTION_COPY[action].success), t(ACTION_COPY[action].failure));
     } catch (error) {
-      showToast('error', `${ACTION_LABELS[action]} failed`, String(error));
+      showToast('error', t(ACTION_COPY[action].failed), String(error));
     } finally {
       isLoading.value = false;
     }
   }
 
-  async function runRepoAction(
-    path: string,
-    action: 'fetch' | 'pull' | 'push' | 'stash' | 'stash_pop',
-  ): Promise<void> {
+  async function runRepoAction(path: string, action: GroupAction): Promise<void> {
     isLoading.value = true;
     try {
       const results = await backend.executeGroupAction([path], action, 1);
       await refreshSingleRepo(path);
       await loadGroupBranches();
-      summarizeResults(results, ACTION_LABELS[action]);
+      summarizeResults(results, t(ACTION_COPY[action].success), t(ACTION_COPY[action].failure));
     } catch (error) {
-      showToast('error', `${ACTION_LABELS[action]} failed`, String(error));
+      showToast('error', t(ACTION_COPY[action].failed), String(error));
     } finally {
       isLoading.value = false;
     }
@@ -542,9 +550,9 @@ export const useRepoStore = defineStore('repo', () => {
       const results = await backend.switchGroupBranch(paths, branch, autoStash);
       await Promise.all(paths.map((path) => refreshSingleRepo(path)));
       await loadGroupBranches();
-      summarizeResults(results, `Switch to ${branch}`);
+      summarizeResults(results, t('toast.branchSwitched'), t('toast.branchSwitchFailure'));
     } catch (error) {
-      showToast('error', `Switch to ${branch} failed`, String(error));
+      showToast('error', t('toast.switchToFailed', { branch }), String(error));
     } finally {
       isLoading.value = false;
     }
@@ -555,9 +563,9 @@ export const useRepoStore = defineStore('repo', () => {
       config.value = await backend.saveRepoGroup(group);
       selectedGroupId.value = group.id;
       await loadGroupBranches();
-      showToast('success', 'Group saved', group.name);
+      showToast('success', t('toast.groupSaved'), group.name);
     } catch (error) {
-      showToast('error', 'Could not save group', String(error));
+      showToast('error', t('toast.saveGroupFailed'), String(error));
     }
   }
 
@@ -571,20 +579,20 @@ export const useRepoStore = defineStore('repo', () => {
         allReposFilters.value.groupId = 'all';
       }
       await loadGroupBranches();
-      showToast('success', 'Group deleted');
+      showToast('success', t('toast.groupDeleted'));
     } catch (error) {
-      showToast('error', 'Could not delete group', String(error));
+      showToast('error', t('toast.deleteGroupFailed'), String(error));
     }
   }
 
   async function addScanPath(scanPath: ScanPath): Promise<boolean> {
     try {
       config.value = await backend.addScanPath(scanPath);
-      showToast('success', 'Project folder added', scanPath.path);
+      showToast('success', t('toast.scanPathAdded'), scanPath.path);
       await scanRepositories();
       return true;
     } catch (error) {
-      showToast('error', 'Could not add project folder', String(error));
+      showToast('error', t('toast.addScanPathFailed'), String(error));
       return false;
     }
   }
@@ -593,9 +601,9 @@ export const useRepoStore = defineStore('repo', () => {
     try {
       config.value = await backend.removeScanPath(id);
       await scanRepositories();
-      showToast('success', 'Project folder removed');
+      showToast('success', t('toast.scanPathRemoved'));
     } catch (error) {
-      showToast('error', 'Could not remove project folder', String(error));
+      showToast('error', t('toast.removeScanPathFailed'), String(error));
     }
   }
 
@@ -625,6 +633,7 @@ export const useRepoStore = defineStore('repo', () => {
             onboardingSelectedPaths.value,
             onboardingDraft.value.scanPath,
             onboardingDraft.value.groupingStyle,
+            t('onboarding.projectsGroup'),
           ).map((group) => ({ ...group, included: true }))
         : [];
     onboardingPendingGroups.value = [];
@@ -649,7 +658,7 @@ export const useRepoStore = defineStore('repo', () => {
     try {
       config.value = await backend.saveOnboardingState(state);
     } catch (error) {
-      showToast('error', 'Could not save setup progress', String(error));
+      showToast('error', t('toast.saveSetupFailed'), String(error));
       throw error;
     }
   }
@@ -657,7 +666,7 @@ export const useRepoStore = defineStore('repo', () => {
   async function scanOnboardingFolder(): Promise<boolean> {
     const path = onboardingDraft.value.scanPath.trim();
     if (!path) {
-      onboardingError.value = 'Choose the folder where your projects live.';
+      onboardingError.value = t('validation.chooseFolder');
       return false;
     }
 
@@ -675,7 +684,7 @@ export const useRepoStore = defineStore('repo', () => {
       excludePatterns: [],
     });
     if (!added) {
-      onboardingError.value = 'That folder could not be scanned. Check the path.';
+      onboardingError.value = t('validation.scanFolderFailed');
       return false;
     }
 
@@ -710,7 +719,7 @@ export const useRepoStore = defineStore('repo', () => {
 
   async function goToOnboardingStep(step: number): Promise<void> {
     if (step === 2 && onboardingSelectedPaths.value.length === 0) {
-      onboardingError.value = 'Choose at least one project to continue.';
+      onboardingError.value = t('validation.chooseProject');
       return;
     }
 
@@ -719,6 +728,7 @@ export const useRepoStore = defineStore('repo', () => {
         onboardingSelectedPaths.value,
         onboardingDraft.value.scanPath,
         onboardingDraft.value.groupingStyle,
+        t('onboarding.projectsGroup'),
       ).map((group) => ({ ...group, included: true }));
     }
 
@@ -742,15 +752,15 @@ export const useRepoStore = defineStore('repo', () => {
   ): Promise<boolean> {
     const names = groupsToCreate.map((group) => group.name.trim().toLowerCase());
     if (names.length === 0) {
-      onboardingError.value = 'Keep at least one group to continue.';
+      onboardingError.value = t('validation.keepGroup');
       return false;
     }
     if (names.some((name) => name.length === 0)) {
-      onboardingError.value = 'Give every included group a name.';
+      onboardingError.value = t('validation.nameEveryGroup');
       return false;
     }
     if (new Set(names).size !== names.length) {
-      onboardingError.value = 'Give each group a different name.';
+      onboardingError.value = t('validation.uniqueGroupNames');
       return false;
     }
 
@@ -764,7 +774,7 @@ export const useRepoStore = defineStore('repo', () => {
   async function completeOnboarding(openGroupId: string | null): Promise<void> {
     const groupsToCreate = onboardingPendingGroups.value;
     if (groupsToCreate.length === 0) {
-      onboardingError.value = 'Confirm at least one group before finishing.';
+      onboardingError.value = t('validation.confirmGroup');
       onboardingStep.value = 2;
       return;
     }
@@ -784,13 +794,13 @@ export const useRepoStore = defineStore('repo', () => {
       const count = groupsToCreate.length;
       showToast(
         'success',
-        'Setup complete',
-        `${count} ${count === 1 ? 'group' : 'groups'} ready.`,
+        t('toast.setupComplete'),
+        t('toast.groupsReady', { count, groupWord: tPlural('common.group', count) }),
       );
       onboardingPendingGroups.value = [];
     } catch (error) {
       onboardingError.value = String(error);
-      showToast('error', 'Could not finish setup', String(error));
+      showToast('error', t('toast.finishSetupFailed'), String(error));
     }
   }
 

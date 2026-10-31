@@ -13,7 +13,7 @@ import type {
 export const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 export const backendMode: 'desktop' | 'web' = isTauri ? 'desktop' : 'web';
 
-const TOKEN_STORAGE_KEY = 'git-repo-manager.web-token';
+const TOKEN_STORAGE_KEY = 'repoman.web-token';
 
 function captureWebToken(): void {
   if (isTauri || typeof window === 'undefined') return;

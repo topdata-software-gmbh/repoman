@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { setLanguage } from '../i18n';
 import { statusBadges } from '../repoStatus';
 import type { GitRepoState, Repository } from '../../types/domain';
+
+beforeEach(() => {
+  setLanguage('en');
+});
 
 function repo(overrides: Partial<GitRepoState> = {}): Repository {
   return {
@@ -50,6 +55,14 @@ describe('statusBadges', () => {
     expect(statusBadges(repo({ behindCount: 2 }))[0]).toMatchObject({
       label: '2 updates available',
       variant: 'info',
+    });
+  });
+
+  it('translates badges after a language switch', () => {
+    setLanguage('de');
+    expect(statusBadges(repo())[0]).toMatchObject({
+      label: 'Nur auf diesem Computer',
+      variant: 'neutral',
     });
   });
 });

@@ -335,7 +335,7 @@ async fn serve(options: WebOptions) -> Result<(), Box<dyn std::error::Error>> {
     log::info!("static assets: {}", dist_dir.display());
 
     println!(
-        "Git Repo Manager web UI: http://{}:{}/",
+        "RepoMan web UI: http://{}:{}/",
         display_host,
         local_address.port()
     );

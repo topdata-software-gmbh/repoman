@@ -21,6 +21,7 @@ import {
   TdSelect,
   TdSpinner,
 } from '@topdata-software-gmbh/ui-kit-web-vue3';
+import { t, tPlural } from '../lib/i18n';
 import { useRepoStore } from '../stores/repoStore';
 
 const store = useRepoStore();
@@ -47,7 +48,7 @@ const branchOptions = computed(() => [
   {
     value: '',
     label:
-      store.filteredRepositories.length === 0 ? 'No projects yet' : 'Choose a branch…',
+      store.filteredRepositories.length === 0 ? t('toolbar.noProjectsYet') : t('toolbar.chooseBranch'),
     disabled: true,
   },
   ...store.groupBranches.map((branch) => ({
@@ -105,39 +106,39 @@ async function runAction(
   >
     <div class="flex min-w-0 flex-wrap items-center gap-3">
       <span class="max-w-48 truncate text-sm font-semibold text-fg">
-        {{ store.currentGroup ? store.currentGroup.name : 'Project group' }}
+        {{ store.currentGroup ? store.currentGroup.name : t('toolbar.projectGroup') }}
       </span>
       <TdBadge variant="neutral">
         {{ store.filteredRepositories.length }}
-        {{ store.filteredRepositories.length === 1 ? 'project' : 'projects' }}
+        {{ tPlural('common.project', store.filteredRepositories.length) }}
       </TdBadge>
       <span
         v-if="store.cleanRepositoryCount > 0"
         class="hidden items-center gap-1 text-[11px] text-success-fg lg:flex"
-        title="Projects with no changes waiting"
+        :title="t('toolbar.noChangesWaiting')"
       >
         <span class="h-1.5 w-1.5 rounded-full bg-success"></span>
-        {{ store.cleanRepositoryCount }} up to date
+        {{ t('toolbar.upToDateCount', { count: store.cleanRepositoryCount }) }}
       </span>
 
       <div
         v-if="showBranchSelector"
         class="flex items-center gap-2 rounded-lg border border-border bg-surface-raised px-2.5 py-1.5"
-        title="Choose which version of the project you want to work on"
+        :title="t('toolbar.chooseVersionHint')"
       >
         <TdSpinner
           v-if="switching || store.isBranchListLoading"
           size="sm"
-          label="Loading branches"
+          :label="t('toolbar.loadingBranches')"
           class="text-primary"
         />
         <GitBranch v-else class="h-3.5 w-3.5 text-primary" />
-        <span class="text-[11px] text-fg-muted">Branch</span>
+        <span class="text-[11px] text-fg-muted">{{ t('toolbar.branch') }}</span>
         <TdSelect
           v-model="branchSelection"
           :options="branchOptions"
           :disabled="!canSwitchBranch"
-          aria-label="Working on branch"
+          :aria-label="t('toolbar.workingOnBranch')"
           size="sm"
           class="max-w-44"
           @change="onBranchChange"
@@ -150,11 +151,11 @@ async function runAction(
         variant="primary"
         size="sm"
         :disabled="busy || dirtyCount === 0"
-        title="Create a checkpoint of your changed files in Git"
+        :title="t('toolbar.saveHint')"
         @click="store.openSaveChanges()"
       >
         <template #icon-left><Save /></template>
-        <span>Save to Git</span>
+        <span>{{ t('toolbar.saveToGit') }}</span>
         <TdBadge v-if="dirtyCount > 0" variant="neutral">{{ dirtyCount }}</TdBadge>
       </TdButton>
 
@@ -162,36 +163,36 @@ async function runAction(
         variant="secondary"
         size="sm"
         :disabled="busy || store.filteredRepositories.length === 0"
-        title="Download new work from the server and update your project folders"
+        :title="t('toolbar.getLatestHint')"
         @click="runAction('pull')"
       >
         <template #icon-left>
           <TdSpinner v-if="activeAction === 'pull'" size="sm" />
           <ArrowDownToLine v-else class="text-success-fg" />
         </template>
-        <span>Get latest</span>
+        <span>{{ t('toolbar.getLatest') }}</span>
       </TdButton>
 
       <TdButton
         variant="secondary"
         size="sm"
         :disabled="busy || store.filteredRepositories.length === 0"
-        title="Upload your saved checkpoints to the server"
+        :title="t('toolbar.sendHint')"
         @click="runAction('push')"
       >
         <template #icon-left>
           <TdSpinner v-if="activeAction === 'push'" size="sm" />
           <Upload v-else class="text-info-fg" />
         </template>
-        <span>Send changes</span>
+        <span>{{ t('toolbar.sendChanges') }}</span>
       </TdButton>
 
-      <TdMenu aria-label="More Git actions">
+      <TdMenu :aria-label="t('toolbar.moreGitActions')">
         <template #trigger="{ open }">
           <TdButton
             variant="ghost"
             size="sm"
-            aria-label="More Git actions"
+            :aria-label="t('toolbar.moreGitActions')"
             aria-haspopup="menu"
             :aria-expanded="open"
           >
@@ -203,38 +204,38 @@ async function runAction(
           @select="runAction('fetch')"
         >
           <template #icon><RefreshCw /></template>
-          Check for updates
-          <template #description>Looks for new work without changing your files.</template>
+          {{ t('toolbar.checkForUpdates') }}
+          <template #description>{{ t('toolbar.checkForUpdatesHint') }}</template>
         </TdMenuItem>
         <TdMenuItem
           :disabled="busy || store.filteredRepositories.length === 0"
           @select="runAction('stash')"
         >
           <template #icon><Archive /></template>
-          Set aside changes
-          <template #description>Temporarily store unfinished work in all projects.</template>
+          {{ t('toolbar.setAside') }}
+          <template #description>{{ t('toolbar.setAsideHint') }}</template>
         </TdMenuItem>
         <TdMenuItem
           :disabled="busy || store.filteredRepositories.length === 0"
           @select="runAction('stash_pop')"
         >
           <template #icon><ArchiveRestore /></template>
-          Bring back set-aside changes
-          <template #description>Restore the last set of changes in all projects.</template>
+          {{ t('toolbar.bringBack') }}
+          <template #description>{{ t('toolbar.bringBackHint') }}</template>
         </TdMenuItem>
         <TdMenuItem :disabled="busy" @select="store.scanRepositories">
           <template #icon><FolderSearch /></template>
-          Look for new projects
-          <template #description>Check your folders for projects again.</template>
+          {{ t('toolbar.lookForProjects') }}
+          <template #description>{{ t('toolbar.lookForProjectsHint') }}</template>
         </TdMenuItem>
         <TdMenuItem @select="store.openGitLog()">
           <template #icon><Terminal /></template>
-          What Git did
-          <template #description>See the exact commands behind the last actions.</template>
+          {{ t('toolbar.whatGitDid') }}
+          <template #description>{{ t('toolbar.whatGitDidHint') }}</template>
         </TdMenuItem>
         <TdMenuItem @select="store.openHelp">
           <template #icon><HelpCircle /></template>
-          How this works
+          {{ t('sidebar.howThisWorks') }}
         </TdMenuItem>
       </TdMenu>
     </div>

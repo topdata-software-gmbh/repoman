@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Build Git Repo Manager in release mode and install it into a directory on your PATH.
+Build RepoMan in release mode and install it as `repoman` in a directory on your PATH.
 
 Usage:
   ./scripts/install.sh              # install to ~/.local/bin
@@ -39,7 +39,8 @@ done
 
 cd "$(dirname "$0")/.."
 
-APP_NAME="git-repo-manager"
+APP_NAME="repoman"
+LEGACY_APP_NAME="git-repo-manager"
 BIN_SRC="src-tauri/target/release/$APP_NAME"
 
 command -v pnpm >/dev/null || { printf 'error: pnpm not found\n' >&2; exit 1; }
@@ -91,7 +92,13 @@ case ":$PATH:" in
     ;;
 esac
 
+# -- the command was renamed git-repo-manager -> repoman; drop the stale one
+if [[ -e "$PREFIX/$LEGACY_APP_NAME" || -L "$PREFIX/$LEGACY_APP_NAME" ]]; then
+  rm -f "$PREFIX/$LEGACY_APP_NAME"
+  printf '==> Removed renamed command %s\n' "$PREFIX/$LEGACY_APP_NAME"
+fi
+
 APP_VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' src-tauri/Cargo.toml | head -1)"
-printf '\nGit Repo Manager %s installed.\n' "${APP_VERSION:-unknown}"
+printf '\nRepoMan %s installed.\n' "${APP_VERSION:-unknown}"
 printf '  Desktop: %s\n' "$BIN_DST"
 printf '  Browser: %s --web --port 8787 --dist %s/dist\n' "$BIN_DST" "$PWD"

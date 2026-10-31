@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue';
 import { subscribeToEvents } from './lib/backend';
+import { t } from './lib/i18n';
 import { useRepoStore } from './stores/repoStore';
 import AllReposPage from './components/AllReposPage.vue';
 import AddScanPathModal from './components/AddScanPathModal.vue';
@@ -27,7 +28,7 @@ onMounted(async () => {
       onGitStep: (step) => store.recordGitStep(step),
     });
   } catch (error) {
-    store.showToast('error', 'Live updates unavailable', String(error));
+    store.showToast('error', t('app.liveUpdatesUnavailable.title'), String(error));
   }
 });
 

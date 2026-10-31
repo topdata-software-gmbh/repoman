@@ -11,6 +11,7 @@ import {
   TdTextarea,
 } from '@topdata-software-gmbh/ui-kit-web-vue3';
 import { backend } from '../lib/backend';
+import { t, tPlural } from '../lib/i18n';
 import { useRepoStore } from '../stores/repoStore';
 import type { FileChange, FileChangeStatus, Repository } from '../types/domain';
 
@@ -73,7 +74,7 @@ async function loadChanges(): Promise<void> {
 
   changes.value = next;
   if (failed.length > 0) {
-    error.value = `Could not read the changes in: ${failed.join(', ')}.`;
+    error.value = t('save.couldNotRead', { names: failed.join(', ') });
   }
   loading.value = false;
 }
@@ -81,15 +82,15 @@ async function loadChanges(): Promise<void> {
 function statusLabel(status: FileChangeStatus): string {
   switch (status) {
     case 'new':
-      return 'New file';
+      return t('save.status.new');
     case 'deleted':
-      return 'Deleted';
+      return t('save.status.deleted');
     case 'renamed':
-      return 'Renamed';
+      return t('save.status.renamed');
     case 'conflict':
-      return 'Conflict';
+      return t('save.status.conflict');
     default:
-      return 'Changed';
+      return t('save.status.changed');
   }
 }
 
@@ -121,8 +122,11 @@ async function save(): Promise<void> {
   if (failures.length === 0) {
     store.showToast(
       'success',
-      'Saved to Git',
-      `${repos.value.length} ${repos.value.length === 1 ? 'project' : 'projects'} updated.`,
+      t('save.savedTitle'),
+      t('save.savedBody', {
+        count: repos.value.length,
+        projectWord: tPlural('common.project', repos.value.length),
+      }),
     );
     saving.value = false;
     store.closeSaveChanges();
@@ -133,7 +137,7 @@ async function save(): Promise<void> {
   repos.value = repos.value.filter((repo) => failedPaths.has(repo.path));
   message.value = '';
   error.value = failures
-    .map((failure) => `${failure.repoPath.split(/[\\/]/).pop()}: ${failure.error ?? 'Unknown error'}`)
+    .map((failure) => `${failure.repoPath.split(/[\\/]/).pop()}: ${failure.error ?? t('common.unknownError')}`)
     .join('\n\n');
   saving.value = false;
   await loadChanges();
@@ -143,8 +147,8 @@ async function save(): Promise<void> {
 <template>
   <TdModal
     :open="store.saveModalOpen"
-    title="Save to Git"
-    description="Create a checkpoint of your work. Nothing is deleted or moved."
+    :title="t('save.title')"
+    :description="t('save.description')"
     size="lg"
     :show-close="!saving"
     :close-on-backdrop="!saving"
@@ -156,8 +160,8 @@ async function save(): Promise<void> {
         v-if="loading"
         class="flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-3 text-xs text-fg-muted"
       >
-        <TdSpinner size="sm" label="Reading your changes" />
-        Reading your changes…
+        <TdSpinner size="sm" :label="t('save.reading')" />
+        {{ t('save.readingEllipsis') }}
       </div>
 
       <div v-for="repo in repos" :key="repo.id" class="rounded-lg border border-border bg-surface">
@@ -165,10 +169,10 @@ async function save(): Promise<void> {
           <div class="min-w-0">
             <p class="truncate text-sm font-medium text-fg">{{ repo.name }}</p>
             <p class="truncate text-xs text-fg-muted">
-              Working on <span class="font-mono text-fg-muted">{{ repo.state.currentBranch }}</span>
+              {{ t('save.workingOn', { branch: repo.state.currentBranch }) }}
             </p>
           </div>
-          <TdBadge variant="neutral">{{ changes[repo.path]?.length ?? 0 }} changed</TdBadge>
+          <TdBadge variant="neutral">{{ t('save.changed', { count: changes[repo.path]?.length ?? 0 }) }}</TdBadge>
         </div>
 
         <div v-if="(changes[repo.path]?.length ?? 0) > 0" class="border-t border-border">
@@ -191,8 +195,8 @@ async function save(): Promise<void> {
       </div>
 
       <TdFormField
-        label="What did you change?"
-        hint="Write a short note for your future self. It will appear in the project history."
+        :label="t('save.messageLabel')"
+        :hint="t('save.messageHint')"
         required
       >
         <template #default="{ id, required }">
@@ -203,7 +207,7 @@ async function save(): Promise<void> {
             :rows="3"
             autofocus
             class="resize-none"
-            placeholder="For example: Updated the header layout and product card colors"
+            :placeholder="t('save.messagePlaceholder')"
           />
         </template>
       </TdFormField>
@@ -216,12 +220,18 @@ async function save(): Promise<void> {
     <template #footer>
       <div class="flex w-full items-center justify-between">
         <p class="text-xs text-fg-muted">
-          {{ totalFiles }} {{ totalFiles === 1 ? 'file' : 'files' }} across
-          {{ repos.length }} {{ repos.length === 1 ? 'project' : 'projects' }}
+          {{
+            t('save.total', {
+              files: totalFiles,
+              fileWord: tPlural('common.file', totalFiles),
+              projects: repos.length,
+              projectWord: tPlural('common.project', repos.length),
+            })
+          }}
         </p>
         <div class="flex items-center gap-2">
           <TdButton variant="ghost" :disabled="saving" @click="store.closeSaveChanges">
-            Cancel
+            {{ t('save.cancel') }}
           </TdButton>
           <TdButton
             type="submit"
@@ -231,7 +241,7 @@ async function save(): Promise<void> {
             :disabled="!canSave"
           >
             <template #icon-left><Save /></template>
-            Save to Git
+            {{ t('save.submit') }}
           </TdButton>
         </div>
       </div>

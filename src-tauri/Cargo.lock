@@ -1240,29 +1240,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "git-repo-manager"
-version = "0.1.0"
-dependencies = [
- "axum",
- "env_logger",
- "ignore",
- "log",
- "notify",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "tauri",
- "tauri-build",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tokio-stream",
- "tower-http",
- "url",
- "uuid",
-]
-
-[[package]]
 name = "glib"
 version = "0.18.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2789,6 +2766,29 @@ name = "regex-syntax"
 version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
+
+[[package]]
+name = "repoman"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "env_logger",
+ "ignore",
+ "log",
+ "notify",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "tauri",
+ "tauri-build",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-stream",
+ "tower-http",
+ "url",
+ "uuid",
+]
 
 [[package]]
 name = "reqwest"

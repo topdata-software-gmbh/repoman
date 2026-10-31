@@ -8,6 +8,7 @@ import {
   TdCheckbox,
   TdInput,
 } from '@topdata-software-gmbh/ui-kit-web-vue3';
+import { t, tPlural } from '../../lib/i18n';
 import { useRepoStore } from '../../stores/repoStore';
 import { createGroup } from '../../lib/groupDefaults';
 
@@ -27,24 +28,31 @@ function repoName(path: string): string {
 
 function repoSummary(paths: string[]): string {
   const names = paths.slice(0, 3).map(repoName);
-  const suffix = paths.length > 3 ? ` and ${paths.length - 3} more` : '';
+  const suffix = paths.length > 3 ? t('onboarding.groups.more', { count: paths.length - 3 }) : '';
   return names.join(', ') + suffix;
 }
+
+const acceptedLabel = computed(() =>
+  t('onboarding.groups.accepted', {
+    count: store.onboardingSelectedRepositories.length,
+    projectWord: tPlural('common.project', store.onboardingSelectedRepositories.length),
+  }),
+);
 
 async function finish(): Promise<void> {
   localError.value = '';
   const names = includedGroups.value.map((group) => group.name.trim().toLowerCase());
 
   if (names.length === 0) {
-    localError.value = 'Keep at least one group to continue.';
+    localError.value = t('onboarding.groups.errorKeepOne');
     return;
   }
   if (names.some((name) => name.length === 0)) {
-    localError.value = 'Give every included group a name.';
+    localError.value = t('onboarding.groups.errorNameAll');
     return;
   }
   if (new Set(names).size !== names.length) {
-    localError.value = 'Give each group a different name.';
+    localError.value = t('onboarding.groups.errorUnique');
     return;
   }
   if (submitting.value) return;
@@ -66,16 +74,14 @@ async function finish(): Promise<void> {
 <template>
   <div class="space-y-5">
     <div>
-      <h2 class="text-lg font-semibold text-fg">Confirm your groups</h2>
+      <h2 class="text-lg font-semibold text-fg">{{ t('onboarding.groups.title') }}</h2>
       <p class="mt-1.5 text-sm leading-relaxed text-fg-muted">
-        We suggested these from your folders. Rename them or leave one out; you can fine-tune
-        membership later.
+        {{ t('onboarding.groups.text') }}
       </p>
     </div>
 
     <p class="font-mono text-xs text-fg-muted">
-      {{ store.onboardingSelectedRepositories.length }}
-      {{ store.onboardingSelectedRepositories.length === 1 ? 'project' : 'projects' }} accepted
+      {{ acceptedLabel }}
     </p>
 
     <div v-if="store.onboardingGroups.length > 0" class="space-y-3">
@@ -88,7 +94,7 @@ async function finish(): Promise<void> {
         <div class="flex items-start gap-3">
           <TdCheckbox
             :model-value="group.included"
-            :aria-label="`Include ${group.name}`"
+            :aria-label="t('onboarding.groups.include', { name: group.name })"
             class="mt-1"
             @update:model-value="store.toggleOnboardingGroup(index)"
           />
@@ -99,13 +105,13 @@ async function finish(): Promise<void> {
                 <TdInput
                   :model-value="group.name"
                   type="text"
-                  :aria-label="`Name for group ${index + 1}`"
+                  :aria-label="t('onboarding.groups.nameLabel', { index: index + 1 })"
                   @update:model-value="store.updateOnboardingGroupName(index, $event)"
                 />
               </div>
               <TdBadge variant="neutral">
                 {{ group.repoPaths.length }}
-                {{ group.repoPaths.length === 1 ? 'project' : 'projects' }}
+                {{ tPlural('common.project', group.repoPaths.length) }}
               </TdBadge>
             </div>
             <p class="text-[11px] text-fg-muted">{{ repoSummary(group.repoPaths) }}</p>
@@ -118,7 +124,7 @@ async function finish(): Promise<void> {
       v-else
       class="rounded-xl border border-dashed border-border px-5 py-10 text-center text-sm text-fg-muted"
     >
-      No groups to suggest. Go back and select at least one project.
+      {{ t('onboarding.groups.empty') }}
     </div>
 
     <TdAlert v-if="errorMessage" variant="error">{{ errorMessage }}</TdAlert>
@@ -126,7 +132,7 @@ async function finish(): Promise<void> {
     <div class="flex items-center justify-between gap-3">
       <TdButton variant="ghost" @click="store.goToOnboardingStep(1)">
         <template #icon-left><ArrowLeft /></template>
-        Back
+        {{ t('common.back') }}
       </TdButton>
       <TdButton
         variant="primary"
@@ -134,7 +140,7 @@ async function finish(): Promise<void> {
         :loading="submitting"
         @click="finish"
       >
-        Finish setup
+        {{ t('onboarding.groups.finish') }}
         <template #icon-right><ArrowRight /></template>
       </TdButton>
     </div>

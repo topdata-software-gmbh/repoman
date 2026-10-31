@@ -11,6 +11,7 @@ import {
 } from 'lucide-vue-next';
 import { TdBadge, TdButton, TdSpinner } from '@topdata-software-gmbh/ui-kit-web-vue3';
 import { useRepoStore } from '../stores/repoStore';
+import { t } from '../lib/i18n';
 import { branchLabel, statusBadges } from '../lib/repoStatus';
 import type { Repository } from '../types/domain';
 
@@ -58,10 +59,10 @@ function isRowBusy(repo: Repository): boolean {
         class="sticky top-0 z-10 border-b border-border bg-surface/95 text-[11px] font-medium text-fg-muted backdrop-blur"
       >
         <tr>
-          <th class="px-4 py-2.5">Project</th>
-          <th class="px-4 py-2.5">Status</th>
-          <th class="px-4 py-2.5">Last change</th>
-          <th class="w-28 px-3 py-2.5"><span class="sr-only">Actions</span></th>
+          <th class="px-4 py-2.5">{{ t('table.project') }}</th>
+          <th class="px-4 py-2.5">{{ t('table.status') }}</th>
+          <th class="px-4 py-2.5">{{ t('table.lastChange') }}</th>
+          <th class="w-28 px-3 py-2.5"><span class="sr-only">{{ t('table.actions') }}</span></th>
         </tr>
       </thead>
       <tbody class="divide-y divide-border">
@@ -74,14 +75,14 @@ function isRowBusy(repo: Repository): boolean {
           <td class="px-4 py-3.5">
             <div class="flex items-center gap-2 text-sm font-medium text-fg">
               <span class="truncate">{{ repo.name }}</span>
-              <TdBadge v-if="repo.state.isDetachedHead" variant="warning">not on a branch</TdBadge>
+              <TdBadge v-if="repo.state.isDetachedHead" variant="warning">{{ t('table.notOnBranch') }}</TdBadge>
             </div>
             <div class="mt-1 flex flex-wrap items-center gap-2">
               <TdBadge
                 v-if="repo.state.isDetachedHead"
                 variant="warning"
                 class="gap-1 font-mono"
-                title="The branch (version) you are working on"
+                :title="t('table.branchHint')"
               >
                 <template #icon><GitBranch /></template>
                 {{ branchLabel(repo) }}
@@ -89,7 +90,7 @@ function isRowBusy(repo: Repository): boolean {
               <span
                 v-else
                 class="inline-flex items-center gap-1 font-mono text-[10px] text-fg-muted"
-                title="The branch (version) you are working on"
+                :title="t('table.branchHint')"
               >
                 <GitBranch class="h-3 w-3" />
                 {{ branchLabel(repo) }}
@@ -108,8 +109,8 @@ function isRowBusy(repo: Repository): boolean {
                 :variant="badge.variant"
               >
                 <template #icon>
-                  <AlertCircle v-if="badge.label === 'Needs attention'" />
-                  <GitMerge v-else-if="badge.label.includes('in progress')" />
+                  <AlertCircle v-if="badge.kind === 'attention'" />
+                  <GitMerge v-else-if="badge.kind === 'operation'" />
                 </template>
                 {{ badge.label }}
               </TdBadge>
@@ -126,7 +127,7 @@ function isRowBusy(repo: Repository): boolean {
               </p>
             </div>
             <span v-else class="text-[11px] italic text-fg-dim">
-              No checkpoints saved yet
+              {{ t('table.noCheckpoints') }}
             </span>
           </td>
 
@@ -141,13 +142,13 @@ function isRowBusy(repo: Repository): boolean {
                 :disabled="store.isLoading"
                 :title="
                   repo.state.hasConflicts
-                    ? 'Review the changed files (resolve conflicts before saving)'
-                    : 'Save changes in this project to Git'
+                    ? t('table.reviewConflictsHint')
+                    : t('table.saveHint')
                 "
                 @click="store.openSaveChanges([repo.path])"
               >
                 <template #icon-left><Save /></template>
-                <span>{{ repo.state.hasConflicts ? 'Review' : 'Save' }}</span>
+                <span>{{ repo.state.hasConflicts ? t('table.review') : t('table.save') }}</span>
               </TdButton>
 
               <template v-if="props.actions === 'browse'">
@@ -155,8 +156,8 @@ function isRowBusy(repo: Repository): boolean {
                   variant="ghost"
                   size="sm"
                   :disabled="!repo.isAccessible || store.isLoading || isRowBusy(repo)"
-                  :aria-label="`Get latest for ${repo.name}`"
-                  title="Get latest for this project"
+                  :aria-label="t('table.getLatestFor', { name: repo.name })"
+                  :title="t('table.getLatestForHint')"
                   @click="runAction(repo, 'pull')"
                 >
                   <template #icon-left>
@@ -171,8 +172,8 @@ function isRowBusy(repo: Repository): boolean {
                   variant="ghost"
                   size="sm"
                   :disabled="!repo.isAccessible || store.isLoading || isRowBusy(repo)"
-                  :aria-label="`Send changes for ${repo.name}`"
-                  title="Send changes for this project"
+                  :aria-label="t('table.sendFor', { name: repo.name })"
+                  :title="t('table.sendForHint')"
                   @click="runAction(repo, 'push')"
                 >
                   <template #icon-left>
@@ -189,8 +190,8 @@ function isRowBusy(repo: Repository): boolean {
                 variant="ghost"
                 size="sm"
                 :disabled="isRowBusy(repo)"
-                :aria-label="`Refresh ${repo.name}`"
-                title="Refresh this project"
+                :aria-label="t('table.refreshFor', { name: repo.name })"
+                :title="t('table.refreshHint')"
                 @click="refresh(repo.path)"
               >
                 <template #icon-left>

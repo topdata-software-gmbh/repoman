@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { TdButton, TdFormField, TdInput, TdModal } from '@topdata-software-gmbh/ui-kit-web-vue3';
+import { t } from '../lib/i18n';
 import { useRepoStore } from '../stores/repoStore';
 
 const store = useRepoStore();
@@ -53,13 +54,13 @@ async function submit(): Promise<void> {
 <template>
   <TdModal
     :open="store.scanModalOpen"
-    title="Add a folder"
+    :title="t('scan.title')"
     @update:open="onOpenChange"
   >
     <form id="scan-path-form" class="scan-form" @submit.prevent="submit">
       <TdFormField
-        label="Where are your projects?"
-        hint="For example ~/devel or /home/you/projects. We skip folders like node_modules and build output."
+        :label="t('scan.pathLabel')"
+        :hint="t('scan.pathHint')"
         required
         v-slot="{ id, 'aria-describedby': describedBy, invalid, required }"
       >
@@ -77,11 +78,11 @@ async function submit(): Promise<void> {
       </TdFormField>
 
       <details class="scan-form__advanced">
-        <summary class="cursor-pointer text-xs font-medium text-fg-muted">More options</summary>
+        <summary class="cursor-pointer text-xs font-medium text-fg-muted">{{ t('scan.moreOptions') }}</summary>
         <div class="scan-form__depth mt-3">
           <TdFormField
-            label="How deep to look"
-            hint="Nested projects can sit a few folders deep."
+            :label="t('scan.depthLabel')"
+            :hint="t('scan.depthHint')"
             v-slot="{ id }"
           >
             <TdInput :id="id" v-model="maxDepth" type="number" min="1" max="12" />
@@ -91,7 +92,7 @@ async function submit(): Promise<void> {
     </form>
 
     <template #footer>
-      <TdButton variant="ghost" @click="store.closeScanPathModal">Cancel</TdButton>
+      <TdButton variant="ghost" @click="store.closeScanPathModal">{{ t('scan.cancel') }}</TdButton>
       <TdButton
         variant="primary"
         type="submit"
@@ -99,7 +100,7 @@ async function submit(): Promise<void> {
         :disabled="!path.trim() || submitting"
         :loading="submitting"
       >
-        Find my projects
+        {{ t('scan.find') }}
       </TdButton>
     </template>
   </TdModal>

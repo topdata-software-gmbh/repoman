@@ -9,6 +9,7 @@ import {
   TdInput,
   TdModal,
 } from '@topdata-software-gmbh/ui-kit-web-vue3';
+import { t, tPlural } from '../lib/i18n';
 import { useRepoStore } from '../stores/repoStore';
 import { GROUP_COLORS, groupColorStyle } from '../lib/groupDefaults';
 import type { RepoGroup } from '../types/domain';
@@ -65,7 +66,7 @@ function newId(): string {
 async function submit(): Promise<void> {
   const trimmed = name.value.trim();
   if (!trimmed) {
-    error.value = 'Give the group a name.';
+    error.value = t('group.nameRequired');
     return;
   }
   if (submitting.value) return;
@@ -95,7 +96,7 @@ async function submit(): Promise<void> {
 async function remove(): Promise<void> {
   const group = store.editingGroup;
   if (!group || deleting.value) return;
-  if (!window.confirm(`Delete group "${group.name}"? Your projects and files are not touched.`)) {
+  if (!window.confirm(t('group.deleteConfirm', { name: group.name }))) {
     return;
   }
 
@@ -112,21 +113,21 @@ async function remove(): Promise<void> {
 <template>
   <TdModal
     :open="store.groupEditorOpen"
-    :title="isEditing ? 'Edit project group' : 'New project group'"
-    description="Name the group and choose the projects it contains."
+    :title="isEditing ? t('group.editTitle') : t('group.newTitle')"
+    :description="t('group.description')"
     size="lg"
     @close="store.closeGroupEditor"
   >
     <form id="group-editor-form" class="space-y-4" @submit.prevent="submit">
       <div class="grid grid-cols-[1fr_auto] gap-4">
-        <TdFormField label="Group name" required>
+        <TdFormField :label="t('group.nameLabel')" required>
           <template #default="{ id, required }">
-            <TdInput :id="id" v-model="name" :required="required" placeholder="Theme projects" autofocus />
+            <TdInput :id="id" v-model="name" :required="required" :placeholder="t('group.namePlaceholder')" autofocus />
           </template>
         </TdFormField>
 
         <div>
-          <span class="mb-1.5 block text-xs font-medium text-fg">Color</span>
+          <span class="mb-1.5 block text-xs font-medium text-fg">{{ t('group.color') }}</span>
           <div class="flex items-center gap-1.5 pt-1">
             <TdButton
               v-for="swatch in GROUP_COLORS"
@@ -136,7 +137,7 @@ async function remove(): Promise<void> {
               :class="color === swatch ? 'border-fg' : 'border-transparent'"
               :style="groupColorStyle(swatch)"
               :title="swatch"
-              :aria-label="`Use ${swatch} for this group`"
+              :aria-label="t('group.useColor', { color: swatch })"
               :aria-pressed="color === swatch"
               @click="color = swatch"
             />
@@ -146,14 +147,14 @@ async function remove(): Promise<void> {
 
       <div>
         <div class="mb-1.5 flex items-center justify-between">
-          <span class="text-xs font-medium text-fg">Projects</span>
+          <span class="text-xs font-medium text-fg">{{ t('group.projects') }}</span>
           <TdButton
             v-if="store.repositories.length > 0"
             variant="ghost"
             size="sm"
             @click="toggleAll"
           >
-            {{ allSelected ? 'Clear all' : 'Select all' }}
+            {{ allSelected ? t('group.clearAll') : t('group.selectAll') }}
           </TdButton>
         </div>
 
@@ -161,7 +162,7 @@ async function remove(): Promise<void> {
           v-if="store.repositories.length === 0"
           class="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-fg-muted"
         >
-          No projects yet. Add the folder where your projects live, then look for projects.
+          {{ t('group.noProjects') }}
         </p>
         <div
           v-else
@@ -184,26 +185,26 @@ async function remove(): Promise<void> {
           </TdCheckbox>
         </div>
         <p class="mt-1.5 text-xs text-fg-muted">
-          {{ repoPaths.length }} of {{ store.repositories.length }} projects selected
+          {{ t('group.selectedCount', { count: repoPaths.length, total: store.repositories.length, projectWord: tPlural('common.project', store.repositories.length) }) }}
         </p>
       </div>
 
       <details class="rounded-lg border border-border bg-surface px-4 py-3">
-        <summary class="cursor-pointer text-xs font-medium text-fg">Advanced settings</summary>
+        <summary class="cursor-pointer text-xs font-medium text-fg">{{ t('group.advanced') }}</summary>
         <div class="mt-3 grid grid-cols-2 gap-3">
           <TdCheckbox
             v-model="autoStashOnSwitch"
-            label="Keep unsaved changes when switching branches"
-            description="Changes are set aside and put back automatically."
+            :label="t('group.autoStashLabel')"
+            :description="t('group.autoStashDescription')"
           />
           <TdCheckbox
             v-model="syncBranching"
-            label="Show the branch chooser for the group"
-            description="Lets you switch all projects in this group together."
+            :label="t('group.syncBranchingLabel')"
+            :description="t('group.syncBranchingDescription')"
           />
         </div>
         <div class="mt-3 w-52">
-          <TdFormField label="Starting branch for new work">
+          <TdFormField :label="t('group.baseBranchLabel')">
             <template #default="{ id }">
               <TdInput :id="id" v-model="defaultBaseBranch" placeholder="main" />
             </template>
@@ -223,18 +224,18 @@ async function remove(): Promise<void> {
           @click="remove"
         >
           <template #icon-left><Trash2 /></template>
-          Delete group
+          {{ t('group.delete') }}
         </TdButton>
         <span v-else />
         <div class="flex items-center gap-2">
-          <TdButton variant="ghost" @click="store.closeGroupEditor">Cancel</TdButton>
+          <TdButton variant="ghost" @click="store.closeGroupEditor">{{ t('group.cancel') }}</TdButton>
           <TdButton
             type="submit"
             form="group-editor-form"
             variant="primary"
             :loading="submitting"
           >
-            {{ isEditing ? 'Save changes' : 'Create group' }}
+            {{ isEditing ? t('group.saveChanges') : t('group.create') }}
           </TdButton>
         </div>
       </div>

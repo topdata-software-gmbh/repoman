@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- German UI with an English fallback and a sidebar language switcher. The choice
+  is stored under `topdata.language.v1` and applied to `<html lang>`.
+- App-owned typed translation catalogues (`src/lib/i18n/`) with `t()` and
+  `tPlural()`.
+- Shared `useLanguage` composable and `TdLanguageSwitcher` component added to
+  `@topdata-software-gmbh/ui-kit-web-vue3`.
 - Resumable first-run setup wizard with deep folder scanning, optional remote
   owner pre-selection, editable group suggestions, and a ready screen for the
   Save/Get latest/Send workflow.
@@ -27,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Renamed the project and CLI from `git-repo-manager` to `repoman`: the installed
+  command and Rust package are now `repoman`, the desktop product is `RepoMan`
+  (`com.topdata.repoman`), configuration moved to `~/.config/repoman/config.json`,
+  environment variables to `REPOMAN_*`, and browser storage keys to `repoman.*`.
+  The legacy `GIT_REPO_MANAGER_*` variables are still honoured and an existing
+  `git-repo-manager` config directory is copied to the new location on first launch.
 - Migrated every screen, modal, onboarding step, table, and helper to the shared
   web UI kit and token-backed utilities. The app no longer ships a second
   (slate/cyan) palette.

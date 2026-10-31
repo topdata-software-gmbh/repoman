@@ -11,8 +11,7 @@ pub struct ConfigManager {
 
 impl ConfigManager {
     pub fn init() -> Self {
-        let config_dir = dirs_fallback().join("git-repo-manager");
-        Self::from_path(config_dir.join("config.json"))
+        Self::from_path(default_config_path(&dirs_fallback()))
     }
 
     pub fn from_path(config_path: PathBuf) -> Self {
@@ -81,6 +80,26 @@ impl ConfigManager {
         fs::rename(&temp_path, &self.config_path).map_err(|e| e.to_string())?;
         Ok(())
     }
+}
+
+/// Config lives in `<config root>/repoman/config.json`. Installs made before the
+/// `repoman` rename kept it under `git-repo-manager/`, so that file is copied over
+/// once instead of silently presenting an empty workspace.
+fn default_config_path(root: &std::path::Path) -> PathBuf {
+    let current = root.join("repoman").join("config.json");
+    let legacy = root.join("git-repo-manager").join("config.json");
+
+    if !current.exists() && legacy.exists() {
+        if let Some(parent) = current.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        // Copy (not move) so the previous install stays recoverable.
+        if fs::copy(&legacy, &current).is_ok() {
+            return current;
+        }
+    }
+
+    current
 }
 
 fn dirs_fallback() -> PathBuf {
@@ -162,5 +181,50 @@ mod tests {
         assert!(!snapshot.onboarding.completed);
         assert_eq!(snapshot.onboarding.current_step, 0);
         assert_eq!(snapshot.onboarding.owner_names, Vec::<String>::new());
+    }
+
+    #[test]
+    fn migrates_the_pre_rename_config_directory() {
+        let temp = tempfile::tempdir().unwrap();
+        let legacy_dir = temp.path().join("git-repo-manager");
+        fs::create_dir_all(&legacy_dir).unwrap();
+        fs::write(
+            legacy_dir.join("config.json"),
+            r#"{"scanPaths":[],"groups":[]}"#,
+        )
+        .unwrap();
+
+        let path = default_config_path(temp.path());
+
+        assert_eq!(path, temp.path().join("repoman").join("config.json"));
+        assert!(path.exists());
+        assert!(legacy_dir.join("config.json").exists());
+
+        let manager = ConfigManager::from_path(path);
+        assert!(manager.snapshot().unwrap().scan_paths.is_empty());
+    }
+
+    #[test]
+    fn keeps_the_new_directory_when_it_already_exists() {
+        let temp = tempfile::tempdir().unwrap();
+        let current_dir = temp.path().join("repoman");
+        let legacy_dir = temp.path().join("git-repo-manager");
+        fs::create_dir_all(&current_dir).unwrap();
+        fs::create_dir_all(&legacy_dir).unwrap();
+        fs::write(
+            current_dir.join("config.json"),
+            r#"{"scanPaths":[],"groups":[]}"#,
+        )
+        .unwrap();
+        fs::write(legacy_dir.join("config.json"), "stale").unwrap();
+
+        assert_eq!(
+            default_config_path(temp.path()),
+            current_dir.join("config.json")
+        );
+        assert_eq!(
+            fs::read_to_string(legacy_dir.join("config.json")).unwrap(),
+            "stale"
+        );
     }
 }

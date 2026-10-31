@@ -10,6 +10,7 @@ import {
   TdSpinner,
 } from '@topdata-software-gmbh/ui-kit-web-vue3';
 import RepoListTable from './RepoListTable.vue';
+import { t } from '../lib/i18n';
 import { useRepoStore } from '../stores/repoStore';
 import type { RepoStatusFilter } from '../lib/repoFilters';
 import type { RepoKind } from '../types/domain';
@@ -17,27 +18,27 @@ import type { RepoKind } from '../types/domain';
 const store = useRepoStore();
 const filtersOpen = ref(false);
 
-const statusOptions: Array<{ value: RepoStatusFilter; label: string }> = [
-  { value: 'needsAttention', label: 'Needs attention' },
-  { value: 'changesNotSaved', label: 'Changes not saved' },
-  { value: 'updatesAvailable', label: 'Updates available' },
-  { value: 'toSend', label: 'To send' },
-  { value: 'upToDate', label: 'Up to date' },
-  { value: 'localOnly', label: 'On this computer only' },
-];
+const statusOptions = computed<Array<{ value: RepoStatusFilter; label: string }>>(() => [
+  { value: 'needsAttention', label: t('filters.needsAttention') },
+  { value: 'changesNotSaved', label: t('filters.changesNotSaved') },
+  { value: 'updatesAvailable', label: t('filters.updatesAvailable') },
+  { value: 'toSend', label: t('filters.toSend') },
+  { value: 'upToDate', label: t('filters.upToDate') },
+  { value: 'localOnly', label: t('filters.localOnly') },
+]);
 
 const groupOptions = computed(() => [
-  { value: 'all', label: 'Any group' },
-  { value: 'ungrouped', label: 'Ungrouped' },
+  { value: 'all', label: t('filters.anyGroup') },
+  { value: 'ungrouped', label: t('filters.ungrouped') },
   ...store.config.groups.map((group) => ({ value: group.id, label: group.name })),
 ]);
 
-const kindOptions: Array<{ value: RepoKind | 'all'; label: string }> = [
-  { value: 'all', label: 'Any type' },
-  { value: 'theme', label: 'Theme' },
-  { value: 'plugin', label: 'Plugin' },
-  { value: 'other', label: 'Other' },
-];
+const kindOptions = computed<Array<{ value: RepoKind | 'all'; label: string }>>(() => [
+  { value: 'all', label: t('filters.anyType') },
+  { value: 'theme', label: t('filters.theme') },
+  { value: 'plugin', label: t('filters.plugin') },
+  { value: 'other', label: t('filters.other') },
+]);
 
 const kindFilter = computed({
   get: () => store.allReposFilters.kind,
@@ -54,7 +55,7 @@ const statusFilter = computed({
 });
 
 const statusOptionsWithCounts = computed(() =>
-  statusOptions.map((option) => ({
+  statusOptions.value.map((option) => ({
     ...option,
     count: store.allReposStatusCounts[option.value],
   })),
@@ -95,10 +96,10 @@ const isScanning = computed(() => store.isScanning);
     <template v-if="hasRepos">
       <header class="border-b border-border px-5 pb-3 pt-5">
         <div class="flex items-baseline gap-2">
-          <h1 class="text-[15px] font-semibold text-fg">All projects</h1>
+          <h1 class="text-[15px] font-semibold text-fg">{{ t('allRepos.title') }}</h1>
           <span class="text-xs text-fg-muted">
             <template v-if="hasFilters">
-              {{ store.allReposFiltered.length }} of {{ store.repositories.length }}
+              {{ t('common.of', { current: store.allReposFiltered.length, total: store.repositories.length }) }}
             </template>
             <template v-else>{{ store.repositories.length }}</template>
           </span>
@@ -109,8 +110,8 @@ const isScanning = computed(() => store.isScanning);
             <TdInput
               v-model="store.allReposFilters.search"
               type="search"
-              placeholder="Search projects…"
-              aria-label="Search all projects"
+              :placeholder="t('table.searchPlaceholder')"
+              :aria-label="t('allRepos.searchLabel')"
             >
               <template #prefix><Search class="h-3.5 w-3.5 text-fg-muted" /></template>
             </TdInput>
@@ -123,7 +124,7 @@ const isScanning = computed(() => store.isScanning);
             @click="filtersOpen = !filtersOpen"
           >
             <template #icon-left><SlidersHorizontal class="h-3.5 w-3.5" /></template>
-            <span>Filter</span>
+            <span>{{ t('allRepos.filter') }}</span>
             <span
               v-if="activeFilterCount > 0"
               class="ml-1 rounded-full bg-primary px-1.5 text-[10px] text-on-primary"
@@ -139,13 +140,13 @@ const isScanning = computed(() => store.isScanning);
           class="mt-3 rounded-xl border border-border bg-canvas p-3"
         >
           <div class="grid gap-3 sm:grid-cols-2">
-            <TdFormField label="Group">
+            <TdFormField :label="t('filters.group')">
               <template #default="{ id }">
                 <TdSelect :id="id" v-model="store.allReposFilters.groupId" :options="groupOptions" />
               </template>
             </TdFormField>
 
-            <TdFormField label="Type">
+            <TdFormField :label="t('filters.type')">
               <template #default="{ id }">
                 <TdSelect :id="id" v-model="kindFilter" :options="kindOptions" />
               </template>
@@ -153,17 +154,17 @@ const isScanning = computed(() => store.isScanning);
           </div>
 
           <div class="mt-3">
-            <p class="mb-1.5 text-[11px] font-medium text-fg-muted">Status</p>
+            <p class="mb-1.5 text-[11px] font-medium text-fg-muted">{{ t('filters.status') }}</p>
             <TdSegmentedControl
               v-model="statusFilter"
               :options="statusOptionsWithCounts"
-              aria-label="Filter by status"
+              :aria-label="t('filters.statusLabel')"
             />
           </div>
 
           <div v-if="hasFilters" class="mt-3 flex justify-end">
             <TdButton variant="ghost" size="sm" @click="store.clearAllReposFilters">
-              Clear filters
+              {{ t('allRepos.clearFilters') }}
             </TdButton>
           </div>
         </div>
@@ -177,10 +178,10 @@ const isScanning = computed(() => store.isScanning);
       />
 
       <div v-else class="flex flex-1 flex-col items-center justify-center px-6 text-center">
-        <h2 class="text-sm font-semibold text-fg">No projects match</h2>
-        <p class="mt-1.5 text-sm text-fg-muted">Try a different search or filter.</p>
+        <h2 class="text-sm font-semibold text-fg">{{ t('allRepos.noMatch') }}</h2>
+        <p class="mt-1.5 text-sm text-fg-muted">{{ t('allRepos.noMatchHint') }}</p>
         <TdButton class="mt-4" variant="ghost" size="sm" @click="store.clearAllReposFilters">
-          Clear filters
+          {{ t('allRepos.clearFilters') }}
         </TdButton>
       </div>
     </template>
@@ -194,37 +195,37 @@ const isScanning = computed(() => store.isScanning);
       </div>
 
       <template v-if="isScanning">
-        <h2 class="mt-4 text-[15px] font-semibold text-fg">Looking for projects…</h2>
+        <h2 class="mt-4 text-[15px] font-semibold text-fg">{{ t('allRepos.looking') }}</h2>
         <p class="mt-1.5 max-w-sm text-sm leading-relaxed text-fg-muted">
-          Checking {{ folderLabel || 'your folders' }}. Large folders can take a minute.
+          {{ t('allRepos.checking', { folders: folderLabel || t('allRepos.yourFolders') }) }}
         </p>
       </template>
 
       <template v-else-if="store.config.scanPaths.length > 0">
-        <h2 class="mt-4 text-[15px] font-semibold text-fg">No projects found</h2>
+        <h2 class="mt-4 text-[15px] font-semibold text-fg">{{ t('allRepos.noProjectsFound') }}</h2>
         <p class="mt-1.5 max-w-sm text-sm leading-relaxed text-fg-muted">
-          We looked in {{ folderLabel || 'that folder' }} but did not find a Git project.
+          {{ t('allRepos.lookedIn', { folders: folderLabel || t('allRepos.thatFolder') }) }}
         </p>
         <div class="mt-4 flex items-center gap-2">
           <TdButton variant="primary" size="sm" @click="store.openAddScanPath">
             <template #icon-left><FolderSearch class="h-3.5 w-3.5" /></template>
-            <span>Choose another folder</span>
+            <span>{{ t('allRepos.chooseAnother') }}</span>
           </TdButton>
           <TdButton variant="ghost" size="sm" @click="store.scanRepositories">
             <template #icon-left><RefreshCw class="h-3.5 w-3.5" /></template>
-            <span>Look again</span>
+            <span>{{ t('allRepos.lookAgain') }}</span>
           </TdButton>
         </div>
       </template>
 
       <template v-else>
-        <h2 class="mt-4 text-[15px] font-semibold text-fg">Find your projects</h2>
+        <h2 class="mt-4 text-[15px] font-semibold text-fg">{{ t('allRepos.findProjects') }}</h2>
         <p class="mt-1.5 max-w-sm text-sm leading-relaxed text-fg-muted">
-          Choose the folder where your projects live. We will find the Git projects inside.
+          {{ t('allRepos.findProjectsHint') }}
         </p>
         <TdButton class="mt-4" variant="primary" size="sm" @click="store.openAddScanPath">
           <template #icon-left><FolderSearch class="h-3.5 w-3.5" /></template>
-          <span>Choose folder</span>
+          <span>{{ t('allRepos.chooseFolder') }}</span>
         </TdButton>
       </template>
     </div>

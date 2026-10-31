@@ -3,7 +3,8 @@ filename: "_ai/backlog/active/261031_2243__IMPLEMENTATION_PLAN__language-switche
 title: "Implementation Plan: Language switcher and German UI (design system + repo-manager)"
 createdAt: 2026-10-31 22:43
 updatedAt: 2026-10-31 22:43
-status: draft
+status: completed
+completedAt: 2026-10-31 23:50
 priority: high
 tags: [i18n, german, vue, design-system, accessibility, ui]
 estimatedComplexity: complex
@@ -650,7 +651,8 @@ is presentation-only and that the consuming app supplies the language state.
 filename: "_ai/specs/SPEC__261031-1__td-language-switcher.md"
 title: "TdLanguageSwitcher and useLanguage"
 specId: 261031-1
-status: Accepted
+status: completed
+completedAt: 2026-10-31 23:50
 date: 2026-10-31
 priority: high
 estimatedComplexity: simple
@@ -1887,7 +1889,7 @@ store.showToast('error', t('app.liveUpdatesUnavailable.title'), String(error));
 - `confirm(...)` → `t('sidebar.confirmRemoveFolder', { path })`.
 - All nav labels, section headers, `title`/`aria-label`, empty hints, theme
   labels, more-menu items, and the language label use the `sidebar.*` keys.
-- Product name `Git Repo Manager` stays untranslated.
+- Product name `RepoMan` stays untranslated.
 - Confirm that `All projects` now matches the English README wording; the German
   string is `Alle Projekte`.
 
@@ -2461,7 +2463,8 @@ All four commands must pass with zero failures.
 <!-- [NEW FILE] _ai/technical_decisions/ADR__261031-1__app-owned-translations-and-dictionary-free-kit.md -->
 ---
 title: App-owned translations with a dictionary-free UI kit
-status: Accepted
+status: completed
+completedAt: 2026-10-31 23:50
 date: 2026-10-31
 deciders: TopData Team
 tags: [i18n, design-system, ui, vue, localization]
@@ -2575,6 +2578,7 @@ planFile: "_ai/backlog/active/261031_2243__IMPLEMENTATION_PLAN__language-switche
 specFile: ""
 project: "repo-manager"
 status: completed
+completedAt: 2026-10-31 23:50
 filesCreated: 0
 filesModified: 0
 filesDeleted: 0

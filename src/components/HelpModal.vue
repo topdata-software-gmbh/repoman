@@ -6,64 +6,34 @@ import {
   Save,
   Upload,
 } from 'lucide-vue-next';
+import { computed } from 'vue';
 import { TdAlert, TdBadge, TdButton, TdModal } from '@topdata-software-gmbh/ui-kit-web-vue3';
+import { t } from '../lib/i18n';
 import { useRepoStore } from '../stores/repoStore';
 
 const store = useRepoStore();
 
-const steps = [
-  {
-    title: 'Add your project folder once',
-    text: 'Choose the folder where your themes and projects live. The app finds the Git projects inside it.',
-  },
-  {
-    title: 'Edit your files like you normally do',
-    text: 'Use your editor. The app watches each project and shows when something changed.',
-  },
-  {
-    title: 'Save to Git when you reach a checkpoint',
-    text: 'A checkpoint is a commit: a snapshot of your work that you can return to later.',
-  },
-  {
-    title: 'Get latest, then send changes',
-    text: 'Get latest before you start working. Send your saved changes when you are finished.',
-  },
-];
+const steps = computed(() => [
+  { title: t('help.step1.title'), text: t('help.step1.text') },
+  { title: t('help.step2.title'), text: t('help.step2.text') },
+  { title: t('help.step3.title'), text: t('help.step3.text') },
+  { title: t('help.step4.title'), text: t('help.step4.text') },
+]);
 
-const words = [
-  {
-    icon: Save,
-    name: 'Save to Git',
-    text: 'Creates a checkpoint (commit) of your changes in that project. Your files stay in the same folder.',
-  },
-  {
-    icon: Download,
-    name: 'Get latest',
-    text: 'Downloads new work from the server and updates your project folder. Local changes are set aside and put back afterwards.',
-  },
-  {
-    icon: Upload,
-    name: 'Send changes',
-    text: 'Uploads your saved checkpoints so other people can see them.',
-  },
-  {
-    icon: GitBranch,
-    name: 'Branch',
-    text: 'A separate line of work. Switching branches changes the files in your project folder to that version.',
-  },
-  {
-    icon: Archive,
-    name: 'Set aside changes',
-    text: 'Temporarily stores unfinished changes (a stash) so the folder is clean. Bring them back when you need them.',
-  },
-];
+const words = computed(() => [
+  { icon: Save, name: t('help.word.save.name'), text: t('help.word.save.text') },
+  { icon: Download, name: t('help.word.pull.name'), text: t('help.word.pull.text') },
+  { icon: Upload, name: t('help.word.push.name'), text: t('help.word.push.text') },
+  { icon: GitBranch, name: t('help.word.branch.name'), text: t('help.word.branch.text') },
+  { icon: Archive, name: t('help.word.stash.name'), text: t('help.word.stash.text') },
+]);
 </script>
 
 <template>
   <TdModal
     :open="store.helpModalOpen"
-    title="How this works"
-    description="A short guide to working with Git without the jargon."
+    :title="t('help.title')"
+    :description="t('help.description')"
     size="lg"
     @close="store.closeHelp"
   >
@@ -82,7 +52,7 @@ const words = [
 
       <div>
         <h3 class="mb-2 text-xs font-semibold text-fg-muted">
-          Git words in plain English
+          {{ t('help.wordsTitle') }}
         </h3>
         <div class="space-y-2">
           <div
@@ -99,14 +69,13 @@ const words = [
         </div>
       </div>
 
-      <TdAlert variant="warning" title="If something goes wrong">
-        Read the message at the bottom of the screen. It always explains the next step in plain
-        language. Your work is not deleted by the buttons in this app.
+      <TdAlert variant="warning" :title="t('help.warningTitle')">
+        {{ t('help.warningText') }}
       </TdAlert>
     </div>
 
     <template #footer>
-      <TdButton variant="primary" @click="store.closeHelp">Got it</TdButton>
+      <TdButton variant="primary" @click="store.closeHelp">{{ t('help.gotIt') }}</TdButton>
     </template>
   </TdModal>
 </template>

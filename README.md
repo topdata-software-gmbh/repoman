@@ -1,7 +1,8 @@
-# Git Repo Manager
+# RepoMan
 
-A lightweight, beginner-friendly multi-repository Git GUI. Discover repositories
-below configured folders, group them (for example "Shop themes"), watch their Git
+A lightweight, beginner-friendly multi-repository Git GUI (formerly
+`git-repo-manager`). Discover repositories below configured folders, group them
+(for example "Shop themes"), watch their Git
 state, and save, fetch, pull, push, or stash across a whole group at once — with
 plain-language guidance instead of Git jargon.
 
@@ -104,7 +105,7 @@ stop both. Pass `--skip-kit-build` to skip the design-system build, or `--help`
 for details. It requires `pnpm`, `cargo`, and `mprocs`.
 
 `pnpm start` (or `./scripts/start.sh`) launches the installed
-`git-repo-manager` command, falling back to `~/.local/bin`. It does not build;
+`repoman` command, falling back to `~/.local/bin`. It does not build;
 run `pnpm install:bin` first. Any extra arguments are forwarded to the app, so
 `pnpm start -- --web --port 8788` starts web mode.
 
@@ -147,7 +148,7 @@ pnpm tauri build
 
 ### Install a command on your PATH
 
-Build a release binary and install it as `git-repo-manager`:
+Build a release binary and install it as `repoman`:
 
 ```bash
 pnpm install:bin
@@ -164,17 +165,29 @@ release binary for live rebuilds:
 Then start the desktop app with:
 
 ```bash
-git-repo-manager
+repoman
 ```
 
 For browser mode from this checkout, point the server at the built assets:
 
 ```bash
-git-repo-manager --web --port 8787 --dist ./dist
+repoman --web --port 8787 --dist ./dist
 ```
 
 On first launch the main panel shows **Let's find your projects**: add the folder
 where your repositories live, then click **Find my projects**.
+
+## Languages
+
+The UI ships in German (default) and English. The chosen language is stored under
+`topdata.language.v1` in `localStorage` and applied to `<html lang>`; switch it from
+the sidebar footer next to the theme toggle. The translation runtime lives in
+`src/lib/i18n/`: `messages.en.ts` is the source of truth and `messages.de.ts` is
+typed against it, so a missing German key fails `pnpm typecheck`. Add user-facing
+copy there and call `t('namespace.key')` rather than writing literals.
+
+The Rust backend and the "What Git did" transcript from
+`src-tauri/macros/git-actions.yaml` stay English in this pass.
 
 ## Web server mode
 
@@ -189,7 +202,7 @@ cargo run --manifest-path src-tauri/Cargo.toml -- \
 Or use the already-built binary:
 
 ```bash
-./src-tauri/target/release/git-repo-manager --web --host 0.0.0.0 --port 8787
+./src-tauri/target/release/repoman --web --host 0.0.0.0 --port 8787
 ```
 
 Open the printed URL, for example:
@@ -210,12 +223,12 @@ by default. Static UI files are public, but every `/api/*` request is protected.
 
 | Flag | Environment variable | Default |
 | :--- | :--- | :--- |
-| `--web` | `GIT_REPO_MANAGER_WEB=1` | desktop mode |
-| `--host <HOST>` | `GIT_REPO_MANAGER_HOST` | `127.0.0.1` |
-| `--port <PORT>` | `GIT_REPO_MANAGER_PORT` | `8787` |
-| `--token <TOKEN>` | `GIT_REPO_MANAGER_TOKEN` | auto-generated for non-loopback |
-| `--config <PATH>` | `GIT_REPO_MANAGER_CONFIG` | platform config directory |
-| `--dist <PATH>` | `GIT_REPO_MANAGER_DIST` | `dist` |
+| `--web` | `REPOMAN_WEB=1` | desktop mode |
+| `--host <HOST>` | `REPOMAN_HOST` | `127.0.0.1` |
+| `--port <PORT>` | `REPOMAN_PORT` | `8787` |
+| `--token <TOKEN>` | `REPOMAN_TOKEN` | auto-generated for non-loopback |
+| `--config <PATH>` | `REPOMAN_CONFIG` | platform config directory |
+| `--dist <PATH>` | `REPOMAN_DIST` | `dist` |
 
 Use `--help` for the full usage text.
 
@@ -225,7 +238,7 @@ Run the server on the machine that owns the repositories:
 
 ```bash
 pnpm build
-./src-tauri/target/release/git-repo-manager \
+./src-tauri/target/release/repoman \
   --web --host 0.0.0.0 --port 8787 --token "long-random-token"
 ```
 
@@ -252,9 +265,14 @@ pnpm tauri build
 
 Configuration is stored as JSON:
 
-- Linux/macOS: `~/.config/git-repo-manager/config.json`
-- Windows: `%APPDATA%\git-repo-manager\config.json`
-- Override with `--config <path>` or `GIT_REPO_MANAGER_CONFIG`.
+- Linux/macOS: `~/.config/repoman/config.json`
+- Windows: `%APPDATA%\repoman\config.json`
+- Override with `--config <path>` or `REPOMAN_CONFIG`.
+
+Installs made before the rename from `git-repo-manager` keep working: the first
+launch copies `~/.config/git-repo-manager/config.json` into the `repoman`
+directory (the old file is left in place) and the legacy `GIT_REPO_MANAGER_*`
+environment variables are still read when no `REPOMAN_*` counterpart is set.
 
 Example:
 

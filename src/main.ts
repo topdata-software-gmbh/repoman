@@ -4,6 +4,7 @@ import { THEME_STORAGE_KEY } from '@topdata-software-gmbh/ui-kit-web-vue3';
 import '@topdata-software-gmbh/design-tokens/tokens.css';
 import '@topdata-software-gmbh/ui-kit-web-vue3/styles.css';
 import App from './App.vue';
+import './lib/i18n';
 import './style.css';
 
 try {

@@ -3,9 +3,12 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { X } from 'lucide-vue-next';
 import { TdBadge, TdButton } from '@topdata-software-gmbh/ui-kit-web-vue3';
 import { groupGitRuns, shopName } from '../lib/gitLog';
+import { t, tPlural } from '../lib/i18n';
 import { useRepoStore } from '../stores/repoStore';
 import type { GitRun } from '../types/domain';
 
+// Git action titles/comments come from src-tauri/macros/git-actions.yaml and
+// stay English in this increment; see the plan's scope boundary.
 const store = useRepoStore();
 const expanded = ref<Set<string>>(new Set());
 
@@ -43,20 +46,20 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
     v-if="store.gitLogOpen"
     class="absolute inset-x-0 bottom-0 z-30 max-h-[45%] overflow-hidden border-t border-border bg-surface shadow-lg"
     role="region"
-    aria-label="What Git did"
+    :aria-label="t('gitLog.region')"
   >
     <header class="flex items-center justify-between border-b border-border px-4 py-2">
       <div class="flex items-center gap-2">
-        <span class="text-sm font-semibold text-fg">What Git did</span>
+        <span class="text-sm font-semibold text-fg">{{ t('gitLog.title') }}</span>
         <TdBadge variant="neutral">{{ runs.length }}</TdBadge>
       </div>
-      <TdButton variant="ghost" size="sm" aria-label="Close" @click="store.closeGitLog()">
+      <TdButton variant="ghost" size="sm" :aria-label="t('gitLog.close')" @click="store.closeGitLog()">
         <template #icon-left><X /></template>
       </TdButton>
     </header>
 
     <div v-if="runs.length === 0" class="px-4 py-6 text-sm text-fg-muted">
-      Nothing yet. Save, get the latest, or send changes and it will show up here.
+      {{ t('gitLog.empty') }}
     </div>
 
     <ol v-else class="max-h-[38vh] overflow-y-auto px-4 py-2">
@@ -79,12 +82,12 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
           <span class="min-w-0 flex-1">
             <span class="block text-sm font-medium text-fg">{{ run.title }}</span>
             <span class="block text-[11px] text-fg-muted">
-              {{ shopCount(run) }} {{ shopCount(run) === 1 ? 'shop' : 'shops' }}
+              {{ t('gitLog.shops', { count: shopCount(run), shopWord: tPlural('common.shop', shopCount(run)) }) }}
               · {{ run.durationMs }} ms
             </span>
           </span>
           <span class="text-[11px] text-fg-muted">
-            {{ expanded.has(run.runId) ? 'Hide commands' : 'Git commands' }}
+            {{ expanded.has(run.runId) ? t('gitLog.hideCommands') : t('gitLog.showCommands') }}
           </span>
         </button>
 
@@ -99,7 +102,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
               {{ row.repoPaths.map(shopName).join(' · ') }}
             </p>
             <p v-if="row.status === 'skipped'" class="text-[11px] text-fg-muted">
-              not needed this time
+              {{ t('gitLog.notNeeded') }}
             </p>
           </div>
         </div>

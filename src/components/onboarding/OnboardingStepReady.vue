@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { ArrowRight, CheckCircle2, FolderSearch } from 'lucide-vue-next';
 import { TdAlert, TdButton } from '@topdata-software-gmbh/ui-kit-web-vue3';
+import { t, tPlural } from '../../lib/i18n';
 import { useRepoStore } from '../../stores/repoStore';
 
 const store = useRepoStore();
@@ -26,32 +27,37 @@ async function open(groupId: string | null): Promise<void> {
     <div class="flex items-start gap-3">
       <CheckCircle2 class="mt-1 h-6 w-6 shrink-0 text-success-fg" />
       <div>
-        <h2 class="text-lg font-semibold text-fg">You're ready to go</h2>
+        <h2 class="text-lg font-semibold text-fg">{{ t('onboarding.ready.title') }}</h2>
         <p class="mt-1.5 text-sm leading-relaxed text-fg-muted">
-          {{ store.onboardingSelectedRepositories.length }}
-          {{ store.onboardingSelectedRepositories.length === 1 ? 'project' : 'projects' }} accepted
-          and {{ groups.length }} {{ groups.length === 1 ? 'group' : 'groups' }} ready.
+          {{
+            t('onboarding.ready.summary', {
+              projects: store.onboardingSelectedRepositories.length,
+              projectWord: tPlural('common.project', store.onboardingSelectedRepositories.length),
+              groups: groups.length,
+              groupWord: tPlural('common.group', groups.length),
+            })
+          }}
         </p>
       </div>
     </div>
 
     <div class="grid gap-3 sm:grid-cols-3">
       <div class="rounded-xl border border-border bg-surface p-4">
-        <h3 class="text-sm font-semibold text-fg">Save to Git</h3>
+        <h3 class="text-sm font-semibold text-fg">{{ t('onboarding.ready.saveTitle') }}</h3>
         <p class="mt-1.5 text-xs leading-relaxed text-fg-muted">
-          Saves a checkpoint of your changed files. Your files stay where they are.
+          {{ t('onboarding.ready.saveText') }}
         </p>
       </div>
       <div class="rounded-xl border border-border bg-surface p-4">
-        <h3 class="text-sm font-semibold text-fg">Get latest</h3>
+        <h3 class="text-sm font-semibold text-fg">{{ t('onboarding.ready.pullTitle') }}</h3>
         <p class="mt-1.5 text-xs leading-relaxed text-fg-muted">
-          Brings new work from the server into your project folders.
+          {{ t('onboarding.ready.pullText') }}
         </p>
       </div>
       <div class="rounded-xl border border-border bg-surface p-4">
-        <h3 class="text-sm font-semibold text-fg">Send changes</h3>
+        <h3 class="text-sm font-semibold text-fg">{{ t('onboarding.ready.pushTitle') }}</h3>
         <p class="mt-1.5 text-xs leading-relaxed text-fg-muted">
-          Uploads your saved checkpoints so others can see them.
+          {{ t('onboarding.ready.pushText') }}
         </p>
       </div>
     </div>
@@ -59,7 +65,7 @@ async function open(groupId: string | null): Promise<void> {
     <TdAlert v-if="store.onboardingError" variant="error">{{ store.onboardingError }}</TdAlert>
 
     <div class="space-y-2 rounded-xl border border-border bg-canvas p-4">
-      <p class="text-xs font-medium text-fg-muted">Open a workspace</p>
+      <p class="text-xs font-medium text-fg-muted">{{ t('onboarding.ready.openTitle') }}</p>
       <div class="flex flex-wrap items-center gap-2">
         <TdButton
           v-if="firstGroup"
@@ -67,12 +73,12 @@ async function open(groupId: string | null): Promise<void> {
           :disabled="busy"
           @click="open(firstGroup.id)"
         >
-          Open {{ firstGroup.name }}
+          {{ t('onboarding.ready.openGroup', { name: firstGroup.name }) }}
           <template #icon-right><ArrowRight /></template>
         </TdButton>
         <TdButton variant="secondary" :disabled="busy" @click="open(null)">
           <template #icon-left><FolderSearch /></template>
-          Open All projects
+          {{ t('onboarding.ready.openAll') }}
         </TdButton>
       </div>
 

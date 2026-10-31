@@ -17,28 +17,36 @@ import {
 } from 'lucide-vue-next';
 import {
   TdButton,
+  TdLanguageSwitcher,
   TdMenu,
   TdMenuItem,
   TdSpinner,
   useTheme,
+  type TdLanguageOption,
 } from '@topdata-software-gmbh/ui-kit-web-vue3';
 import { groupColorStyle } from '../lib/groupDefaults';
+import { language, setLanguage, t } from '../lib/i18n';
 import { useRepoStore } from '../stores/repoStore';
 import type { RepoGroup } from '../types/domain';
 
 const store = useRepoStore();
 const { mode, toggle: toggleTheme } = useTheme();
 
+const languageOptions: TdLanguageOption[] = [
+  { value: 'de', label: 'Deutsch', short: 'DE' },
+  { value: 'en', label: 'English', short: 'EN' },
+];
+
+function chooseLanguage(value: string): void {
+  if (value === 'de' || value === 'en') setLanguage(value);
+}
+
 function repoCount(group: RepoGroup): number {
   return store.repositories.filter((repo) => group.repoPaths.includes(repo.path)).length;
 }
 
 async function removeScanPath(id: string, path: string): Promise<void> {
-  if (
-    !window.confirm(
-      `Stop looking for projects in "${path}"? Your projects and files stay exactly where they are.`,
-    )
-  ) {
+  if (!window.confirm(t('sidebar.confirmRemoveFolder', { path }))) {
     return;
   }
   await store.removeScanPath(id);
@@ -54,7 +62,7 @@ async function removeScanPath(id: string, path: string): Promise<void> {
         >
           <FolderGit2 class="h-4 w-4" />
         </div>
-        <p class="truncate text-[13px] font-semibold text-fg">Git Repo Manager</p>
+        <p class="truncate text-[13px] font-semibold text-fg">RepoMan</p>
       </div>
 
       <nav class="sidebar-nav space-y-0.5">
@@ -71,19 +79,19 @@ async function removeScanPath(id: string, path: string): Promise<void> {
         >
           <template #icon-left><Layers class="h-4 w-4" /></template>
           <span class="flex w-full items-center justify-between">
-            <span>All projects</span>
+            <span>{{ t('sidebar.allProjects') }}</span>
             <span class="text-[11px] text-fg-dim">{{ store.repositories.length }}</span>
           </span>
         </TdButton>
 
         <div class="flex items-center justify-between px-2 pb-1 pt-5">
-          <span class="text-[11px] font-medium text-fg-muted">Groups</span>
+          <span class="text-[11px] font-medium text-fg-muted">{{ t('sidebar.groups') }}</span>
           <TdButton
             variant="ghost"
             size="sm"
             class="p-0.5 text-fg-dim"
-            title="New group"
-            aria-label="New group"
+            :title="t('sidebar.newGroup')"
+            :aria-label="t('sidebar.newGroup')"
             @click="store.openGroupEditor(null)"
           >
             <template #icon-left><Plus class="h-3.5 w-3.5" /></template>
@@ -94,7 +102,7 @@ async function removeScanPath(id: string, path: string): Promise<void> {
           v-if="store.config.groups.length === 0"
           class="px-2.5 pb-1 text-[11px] leading-relaxed text-fg-dim"
         >
-          Create a group to act on several projects at once.
+          {{ t('sidebar.createGroupHint') }}
         </p>
 
         <div
@@ -133,8 +141,8 @@ async function removeScanPath(id: string, path: string): Promise<void> {
             variant="ghost"
             size="sm"
             class="p-1 text-fg-dim opacity-0 transition-opacity group-hover:opacity-100"
-            title="Edit group"
-            aria-label="Edit group"
+            :title="t('sidebar.editGroup')"
+            :aria-label="t('sidebar.editGroup')"
             @click.stop="store.openGroupEditor(group)"
           >
             <template #icon-left><Pencil class="h-3.5 w-3.5" /></template>
@@ -142,13 +150,13 @@ async function removeScanPath(id: string, path: string): Promise<void> {
         </div>
 
         <div class="flex items-center justify-between px-2 pb-1 pt-5">
-          <span class="text-[11px] font-medium text-fg-muted">Folders</span>
+          <span class="text-[11px] font-medium text-fg-muted">{{ t('sidebar.folders') }}</span>
           <TdButton
             variant="ghost"
             size="sm"
             class="p-0.5 text-fg-dim"
-            title="Add folder"
-            aria-label="Add folder"
+            :title="t('sidebar.addFolder')"
+            :aria-label="t('sidebar.addFolder')"
             @click="store.openAddScanPath"
           >
             <template #icon-left><Plus class="h-3.5 w-3.5" /></template>
@@ -159,7 +167,7 @@ async function removeScanPath(id: string, path: string): Promise<void> {
           v-if="store.config.scanPaths.length === 0"
           class="px-2.5 pb-1 text-[11px] leading-relaxed text-fg-dim"
         >
-          Add the folder where your projects live.
+          {{ t('sidebar.addFolderHint') }}
         </p>
 
         <div
@@ -172,10 +180,8 @@ async function removeScanPath(id: string, path: string): Promise<void> {
             size="sm"
             class="p-0.5"
             :class="scanPath.enabled ? 'text-fg-muted' : 'text-fg-dim'"
-            :title="scanPath.enabled ? 'Stop looking in this folder' : 'Look in this folder again'"
-            :aria-label="
-              scanPath.enabled ? 'Stop looking in this folder' : 'Look in this folder again'
-            "
+            :title="scanPath.enabled ? t('sidebar.stopLooking') : t('sidebar.startLooking')"
+            :aria-label="scanPath.enabled ? t('sidebar.stopLooking') : t('sidebar.startLooking')"
             @click="store.toggleScanPath(scanPath)"
           >
             <template #icon-left>
@@ -194,8 +200,8 @@ async function removeScanPath(id: string, path: string): Promise<void> {
             variant="ghost"
             size="sm"
             class="p-0.5 text-fg-dim opacity-0 transition-opacity hover:text-error-fg group-hover:opacity-100"
-            title="Remove folder"
-            aria-label="Remove folder"
+            :title="t('sidebar.removeFolder')"
+            :aria-label="t('sidebar.removeFolder')"
             @click="removeScanPath(scanPath.id, scanPath.path)"
           >
             <template #icon-left><X class="h-3.5 w-3.5" /></template>
@@ -207,7 +213,7 @@ async function removeScanPath(id: string, path: string): Promise<void> {
     <div class="space-y-2 border-t border-border p-3">
       <TdButton variant="primary" block size="sm" @click="store.openAddScanPath">
         <template #icon-left><FolderSearch class="h-3.5 w-3.5" /></template>
-        <span>Add folder</span>
+        <span>{{ t('sidebar.addFolder') }}</span>
       </TdButton>
 
       <div class="flex items-center gap-1">
@@ -222,15 +228,22 @@ async function removeScanPath(id: string, path: string): Promise<void> {
             <TdSpinner v-if="store.isScanning" size="sm" />
             <RefreshCw v-else class="h-3.5 w-3.5" />
           </template>
-          <span>{{ store.isScanning ? 'Looking…' : 'Look again' }}</span>
+          <span>{{ store.isScanning ? t('sidebar.looking') : t('sidebar.lookAgain') }}</span>
         </TdButton>
+
+        <TdLanguageSwitcher
+          :model-value="language"
+          :languages="languageOptions"
+          :aria-label="t('sidebar.changeLanguage')"
+          @update:model-value="chooseLanguage"
+        />
 
         <TdButton
           variant="ghost"
           size="sm"
           class="p-2 text-fg-muted"
-          :title="mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
-          :aria-label="mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+          :title="mode === 'dark' ? t('sidebar.switchToLight') : t('sidebar.switchToDark')"
+          :aria-label="mode === 'dark' ? t('sidebar.switchToLight') : t('sidebar.switchToDark')"
           @click="toggleTheme"
         >
           <template #icon-left>
@@ -239,13 +252,13 @@ async function removeScanPath(id: string, path: string): Promise<void> {
           </template>
         </TdButton>
 
-        <TdMenu align="end" aria-label="More options">
+        <TdMenu align="end" :aria-label="t('sidebar.moreOptions')">
           <template #trigger="{ open }">
             <TdButton
               variant="ghost"
               size="sm"
               class="p-2 text-fg-muted"
-              aria-label="More options"
+              :aria-label="t('sidebar.moreOptions')"
               aria-haspopup="menu"
               :aria-expanded="open"
             >
@@ -254,11 +267,11 @@ async function removeScanPath(id: string, path: string): Promise<void> {
           </template>
           <TdMenuItem @select="store.openOnboarding(true)">
             <template #icon><Sparkles class="h-3.5 w-3.5" /></template>
-            Run setup again
+            {{ t('sidebar.runSetupAgain') }}
           </TdMenuItem>
           <TdMenuItem @select="store.openHelp">
             <template #icon><HelpCircle class="h-3.5 w-3.5" /></template>
-            How this works
+            {{ t('sidebar.howThisWorks') }}
           </TdMenuItem>
         </TdMenu>
       </div>

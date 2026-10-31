@@ -13,7 +13,7 @@ macros:
     comment: "Bring in the changes the others made"
     steps:
       - when: [dirty]
-        args: ["stash", "push", "-u", "-m", "git-repo-manager-autostash"]
+        args: ["stash", "push", "-u", "-m", "repoman-autostash"]
         comment: "Set your unfinished work aside for a moment"
         sets: stashed
         alias: "gsta"
@@ -70,7 +70,7 @@ macros:
     comment: "Move every project to the version you chose"
     steps:
       - when: [dirty, auto_stash]
-        args: ["stash", "push", "-u", "-m", "git-repo-manager-autostash"]
+        args: ["stash", "push", "-u", "-m", "repoman-autostash"]
         comment: "Set your unfinished work aside for a moment"
         sets: stashed
         alias: "gsta"

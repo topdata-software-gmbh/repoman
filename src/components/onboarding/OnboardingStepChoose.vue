@@ -8,6 +8,7 @@ import {
   TdCheckbox,
   TdInput,
 } from '@topdata-software-gmbh/ui-kit-web-vue3';
+import { t, tPlural } from '../../lib/i18n';
 import { useRepoStore } from '../../stores/repoStore';
 import type { RepoKind } from '../../types/domain';
 
@@ -26,11 +27,11 @@ const selectedCount = computed(() => store.onboardingSelectedPaths.length);
 function kindLabel(kind: RepoKind): string {
   switch (kind) {
     case 'theme':
-      return 'Theme';
+      return t('filters.theme');
     case 'plugin':
-      return 'Plugin';
+      return t('filters.plugin');
     default:
-      return 'Other';
+      return t('filters.other');
   }
 }
 
@@ -49,10 +50,9 @@ function selectVisible(): void {
 <template>
   <div class="space-y-5">
     <div>
-      <h2 class="text-lg font-semibold text-fg">Choose the projects to work with</h2>
+      <h2 class="text-lg font-semibold text-fg">{{ t('onboarding.choose.title') }}</h2>
       <p class="mt-1.5 text-sm leading-relaxed text-fg-muted">
-        Everything we found is listed here. Projects you own are already selected; adjust the list
-        as you like.
+        {{ t('onboarding.choose.text') }}
       </p>
     </div>
 
@@ -61,21 +61,26 @@ function selectVisible(): void {
         <TdInput
           v-model="store.onboardingSearch"
           type="search"
-          placeholder="Search name, path, or branch…"
-          aria-label="Search projects"
+          :placeholder="t('onboarding.choose.searchPlaceholder')"
+          :aria-label="t('onboarding.choose.searchLabel')"
         >
           <template #prefix><Search class="h-3.5 w-3.5 text-fg-muted" /></template>
         </TdInput>
       </div>
-      <TdButton variant="secondary" @click="selectVisible">Select all visible</TdButton>
+      <TdButton variant="secondary" @click="selectVisible">{{ t('onboarding.choose.selectVisible') }}</TdButton>
       <TdButton variant="ghost" @click="store.clearOnboardingSelection">
-        Clear selection
+        {{ t('onboarding.choose.clearSelection') }}
       </TdButton>
     </div>
 
     <p class="font-mono text-xs text-fg-muted">
-      {{ selectedCount }} of {{ store.repositories.length }}
-      {{ store.repositories.length === 1 ? 'project' : 'projects' }} selected
+      {{
+        t('common.projectsSelected', {
+          count: selectedCount,
+          total: store.repositories.length,
+          projectWord: tPlural('common.project', store.repositories.length),
+        })
+      }}
     </p>
 
     <div v-if="store.isScanning" class="space-y-2">
@@ -116,10 +121,10 @@ function selectVisible(): void {
       v-else-if="store.onboardingSearch.trim()"
       class="rounded-xl border border-dashed border-border px-5 py-10 text-center"
     >
-      <h3 class="text-sm font-semibold text-fg">No projects match</h3>
-      <p class="mt-1 text-xs text-fg-muted">Try a different search term.</p>
+      <h3 class="text-sm font-semibold text-fg">{{ t('onboarding.choose.noMatch') }}</h3>
+      <p class="mt-1 text-xs text-fg-muted">{{ t('onboarding.choose.noMatchHint') }}</p>
       <TdButton class="mt-3" variant="ghost" size="sm" @click="store.onboardingSearch = ''">
-        Clear search
+        {{ t('onboarding.choose.clearSearch') }}
       </TdButton>
     </div>
 
@@ -127,9 +132,9 @@ function selectVisible(): void {
       v-else
       class="rounded-xl border border-dashed border-border px-5 py-10 text-center"
     >
-      <h3 class="text-sm font-semibold text-fg">No Git projects found</h3>
+      <h3 class="text-sm font-semibold text-fg">{{ t('onboarding.choose.noProjects') }}</h3>
       <p class="mt-1 text-xs text-fg-muted">
-        Check the folder, or go back and choose another one.
+        {{ t('onboarding.choose.noProjectsHint') }}
       </p>
     </div>
 
@@ -138,14 +143,14 @@ function selectVisible(): void {
     <div class="flex items-center justify-between gap-3">
       <TdButton variant="ghost" @click="store.goToOnboardingStep(0)">
         <template #icon-left><ArrowLeft /></template>
-        Back
+        {{ t('common.back') }}
       </TdButton>
       <TdButton
         variant="primary"
         :disabled="selectedCount === 0 || store.isScanning"
         @click="store.goToOnboardingStep(2)"
       >
-        Continue
+        {{ t('common.continue') }}
         <template #icon-right><ArrowRight /></template>
       </TdButton>
     </div>

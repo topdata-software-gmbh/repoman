@@ -128,21 +128,14 @@ fn run_desktop(cli: Cli) {
 
 fn parse_cli() -> Result<Cli, String> {
     let mut cli = Cli {
-        web: env_flag("GIT_REPO_MANAGER_WEB"),
-        host: std::env::var("GIT_REPO_MANAGER_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()),
-        port: std::env::var("GIT_REPO_MANAGER_PORT")
-            .ok()
+        web: env_flag("WEB"),
+        host: env_legacy("HOST").unwrap_or_else(|| "127.0.0.1".to_string()),
+        port: env_legacy("PORT")
             .and_then(|value| value.parse().ok())
             .unwrap_or(8787),
-        token: std::env::var("GIT_REPO_MANAGER_TOKEN")
-            .ok()
-            .filter(|value| !value.is_empty()),
-        config: std::env::var("GIT_REPO_MANAGER_CONFIG")
-            .ok()
-            .map(PathBuf::from),
-        dist: std::env::var("GIT_REPO_MANAGER_DIST")
-            .ok()
-            .map(PathBuf::from),
+        token: env_legacy("TOKEN").filter(|value| !value.is_empty()),
+        config: env_legacy("CONFIG").map(PathBuf::from),
+        dist: env_legacy("DIST").map(PathBuf::from),
         accelerated: false,
         help: false,
     };
@@ -197,18 +190,27 @@ fn parse_cli() -> Result<Cli, String> {
     Ok(cli)
 }
 
-fn env_flag(name: &str) -> bool {
-    std::env::var(name)
+/// Reads `REPOMAN_<suffix>`, falling back to the pre-rename `GIT_REPO_MANAGER_<suffix>`
+/// so setups written before the `repoman` rename keep working.
+fn env_legacy(suffix: &str) -> Option<String> {
+    match std::env::var(format!("REPOMAN_{suffix}")) {
+        Ok(value) => Some(value),
+        Err(_) => std::env::var(format!("GIT_REPO_MANAGER_{suffix}")).ok(),
+    }
+}
+
+fn env_flag(suffix: &str) -> bool {
+    env_legacy(suffix)
         .map(|value| value == "1" || value.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
 }
 
 fn help_text() -> &'static str {
-    "Git Repo Manager
+    "RepoMan
 
 Usage:
-  git-repo-manager                 Launch the desktop application
-  git-repo-manager --web           Serve the browser UI and HTTP API
+  repoman                 Launch the desktop application
+  repoman --web           Serve the browser UI and HTTP API
 
 Options:
   --web                 Run in web server mode (no desktop window)
@@ -221,12 +223,13 @@ Options:
   -h, --help            Print this help
 
 Environment variables:
-  GIT_REPO_MANAGER_WEB=1
-  GIT_REPO_MANAGER_HOST / GIT_REPO_MANAGER_PORT
-  GIT_REPO_MANAGER_TOKEN / GIT_REPO_MANAGER_CONFIG / GIT_REPO_MANAGER_DIST
+  REPOMAN_WEB=1
+  REPOMAN_HOST / REPOMAN_PORT
+  REPOMAN_TOKEN / REPOMAN_CONFIG / REPOMAN_DIST
+  The legacy GIT_REPO_MANAGER_* names are still accepted.
 
 Web mode example:
   pnpm build
-  git-repo-manager --web --host 0.0.0.0 --port 8787 --token \"$(openssl rand -hex 16)\"
+  repoman --web --host 0.0.0.0 --port 8787 --token \"$(openssl rand -hex 16)\"
 "
 }

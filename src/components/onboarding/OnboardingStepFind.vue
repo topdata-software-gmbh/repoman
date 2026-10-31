@@ -9,6 +9,7 @@ import {
   TdSelect,
   TdSpinner,
 } from '@topdata-software-gmbh/ui-kit-web-vue3';
+import { t } from '../../lib/i18n';
 import { useRepoStore } from '../../stores/repoStore';
 import type { GroupingStyle } from '../../types/domain';
 
@@ -30,10 +31,10 @@ const groupingStyle = computed({
   },
 });
 
-const groupingOptions = [
-  { value: 'topLevel', label: 'By top-level folder' },
-  { value: 'single', label: 'One group for everything' },
-];
+const groupingOptions = computed(() => [
+  { value: 'topLevel', label: t('onboarding.find.groupingTopLevel') },
+  { value: 'single', label: t('onboarding.find.groupingSingle') },
+]);
 
 async function submit(): Promise<void> {
   if (submitting.value) return;
@@ -52,16 +53,16 @@ async function submit(): Promise<void> {
 <template>
   <form class="mx-auto max-w-xl space-y-6" @submit.prevent="submit">
     <div>
-      <h2 class="text-lg font-semibold text-fg">Where do your projects live?</h2>
+      <h2 class="text-lg font-semibold text-fg">{{ t('onboarding.find.title') }}</h2>
       <p class="mt-1.5 text-sm leading-relaxed text-fg-muted">
-        Choose the folder that holds your themes and plugins. We will find the Git projects inside.
+        {{ t('onboarding.find.text') }}
       </p>
     </div>
 
     <div class="space-y-4 rounded-xl border border-border bg-surface p-5">
       <TdFormField
-        label="Project folder"
-        hint="For example ~/devel or /home/you/projects."
+        :label="t('onboarding.find.pathLabel')"
+        :hint="t('onboarding.find.pathHint')"
         required
         v-slot="{ id, 'aria-describedby': describedBy, invalid, required }"
       >
@@ -79,11 +80,11 @@ async function submit(): Promise<void> {
     </div>
 
     <details class="rounded-xl border border-border bg-surface px-5 py-4">
-      <summary class="cursor-pointer text-xs font-medium text-fg">More options</summary>
+      <summary class="cursor-pointer text-xs font-medium text-fg">{{ t('onboarding.find.moreOptions') }}</summary>
       <div class="mt-4 space-y-4">
         <TdFormField
-          label="Remote owner names (optional)"
-          hint="Used only to pre-select projects you own. This stays on this computer."
+          :label="t('onboarding.find.ownersLabel')"
+          :hint="t('onboarding.find.ownersHint')"
           v-slot="{ id, 'aria-describedby': describedBy }"
         >
           <TdInput
@@ -98,8 +99,8 @@ async function submit(): Promise<void> {
 
         <div class="grid gap-4 sm:grid-cols-2">
           <TdFormField
-            label="How deep to look"
-            hint="The default of 4 finds most setups."
+            :label="t('onboarding.find.depthLabel')"
+            :hint="t('onboarding.find.depthHint')"
             v-slot="{ id, 'aria-describedby': describedBy }"
           >
             <TdInput
@@ -113,8 +114,8 @@ async function submit(): Promise<void> {
           </TdFormField>
 
           <TdFormField
-            label="How to suggest groups"
-            hint="You can rename or skip groups later."
+            :label="t('onboarding.find.groupingLabel')"
+            :hint="t('onboarding.find.groupingHint')"
             v-slot="{ id, 'aria-describedby': describedBy }"
           >
             <TdSelect
@@ -136,7 +137,7 @@ async function submit(): Promise<void> {
       role="status"
     >
       <TdSpinner size="sm" />
-      Looking for projects. Large folders can take a minute…
+      {{ t('onboarding.find.scanning') }}
     </p>
 
     <div class="flex items-center gap-3">
@@ -147,7 +148,7 @@ async function submit(): Promise<void> {
         :loading="submitting"
       >
         <template #icon-left><FolderSearch /></template>
-        <span>Find my projects</span>
+        <span>{{ t('onboarding.find.submit') }}</span>
       </TdButton>
     </div>
   </form>
