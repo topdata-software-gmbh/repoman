@@ -81,7 +81,7 @@ const words = [
       </ol>
 
       <div>
-        <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-fg-muted">
+        <h3 class="mb-2 text-xs font-semibold text-fg-muted">
           Git words in plain English
         </h3>
         <div class="space-y-2">

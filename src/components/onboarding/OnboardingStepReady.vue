@@ -59,7 +59,7 @@ async function open(groupId: string | null): Promise<void> {
     <TdAlert v-if="store.onboardingError" variant="error">{{ store.onboardingError }}</TdAlert>
 
     <div class="space-y-2 rounded-xl border border-border bg-canvas p-4">
-      <p class="text-xs font-medium uppercase tracking-wider text-fg-muted">Open a workspace</p>
+      <p class="text-xs font-medium text-fg-muted">Open a workspace</p>
       <div class="flex flex-wrap items-center gap-2">
         <TdButton
           v-if="firstGroup"
@@ -72,7 +72,7 @@ async function open(groupId: string | null): Promise<void> {
         </TdButton>
         <TdButton variant="secondary" :disabled="busy" @click="open(null)">
           <template #icon-left><FolderSearch /></template>
-          Open All repos
+          Open All projects
         </TdButton>
       </div>
 

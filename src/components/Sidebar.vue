@@ -4,20 +4,30 @@ import {
   EyeOff,
   FolderGit2,
   FolderSearch,
+  HelpCircle,
   Layers,
+  MoreHorizontal,
+  Moon,
   Pencil,
   Plus,
   RefreshCw,
   Sparkles,
+  Sun,
   X,
 } from 'lucide-vue-next';
-import { TdBadge, TdButton, TdSpinner } from '@topdata-software-gmbh/ui-kit-web-vue3';
-import { backendMode } from '../lib/backend';
+import {
+  TdButton,
+  TdMenu,
+  TdMenuItem,
+  TdSpinner,
+  useTheme,
+} from '@topdata-software-gmbh/ui-kit-web-vue3';
 import { groupColorStyle } from '../lib/groupDefaults';
 import { useRepoStore } from '../stores/repoStore';
 import type { RepoGroup } from '../types/domain';
 
 const store = useRepoStore();
+const { mode, toggle: toggleTheme } = useTheme();
 
 function repoCount(group: RepoGroup): number {
   return store.repositories.filter((repo) => group.repoPaths.includes(repo.path)).length;
@@ -36,131 +46,132 @@ async function removeScanPath(id: string, path: string): Promise<void> {
 </script>
 
 <template>
-  <aside class="flex w-72 shrink-0 flex-col border-r border-border bg-canvas">
-    <div class="flex-1 overflow-y-auto p-3">
-      <div class="mb-3 flex items-center gap-2 px-2 py-2">
-        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-          <FolderGit2 class="h-4 w-4 text-primary" />
+  <aside class="flex w-64 shrink-0 flex-col border-r border-border bg-canvas">
+    <div class="flex-1 overflow-y-auto px-3 py-4">
+      <div class="mb-5 flex items-center gap-2.5 px-2">
+        <div
+          class="flex h-8 w-8 items-center justify-center rounded-[10px] bg-primary text-on-primary shadow-sm"
+        >
+          <FolderGit2 class="h-4 w-4" />
         </div>
-        <div class="min-w-0">
-          <p class="truncate text-sm font-bold tracking-wide text-fg">Git Repo Manager</p>
-          <p class="text-[10px] uppercase tracking-widest text-fg-muted">your project workspace</p>
-        </div>
+        <p class="truncate text-[13px] font-semibold text-fg">Git Repo Manager</p>
       </div>
 
-      <nav class="space-y-1">
+      <nav class="sidebar-nav space-y-0.5">
         <TdButton
           variant="ghost"
           block
-          class="justify-between px-2.5 py-1.5 text-xs"
+          class="justify-between px-2.5 py-2 text-[13px]"
           :class="
             store.selectedGroupId === 'all'
-              ? 'bg-surface-raised font-semibold text-primary'
-              : 'text-fg-muted hover:bg-surface hover:text-fg'
+              ? 'bg-surface font-medium text-fg shadow-sm'
+              : 'text-fg-muted hover:text-fg'
           "
           @click="store.selectGroup('all')"
         >
-          <template #icon-left><Layers /></template>
+          <template #icon-left><Layers class="h-4 w-4" /></template>
           <span class="flex w-full items-center justify-between">
-            <span>All repos</span>
-            <TdBadge variant="neutral">{{ store.repositories.length }}</TdBadge>
+            <span>All projects</span>
+            <span class="text-[11px] text-fg-dim">{{ store.repositories.length }}</span>
           </span>
         </TdButton>
 
-        <div
-          class="flex items-center justify-between px-2.5 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-fg-muted"
-        >
-          <span>Project groups</span>
+        <div class="flex items-center justify-between px-2 pb-1 pt-5">
+          <span class="text-[11px] font-medium text-fg-muted">Groups</span>
           <TdButton
             variant="ghost"
             size="sm"
-            class="p-0.5"
-            title="New project group"
-            aria-label="New project group"
+            class="p-0.5 text-fg-dim"
+            title="New group"
+            aria-label="New group"
             @click="store.openGroupEditor(null)"
           >
-            <template #icon-left><Plus /></template>
+            <template #icon-left><Plus class="h-3.5 w-3.5" /></template>
           </TdButton>
         </div>
 
         <p
           v-if="store.config.groups.length === 0"
-          class="px-2.5 py-1 text-[11px] leading-relaxed text-fg-dim"
+          class="px-2.5 pb-1 text-[11px] leading-relaxed text-fg-dim"
         >
-          Groups let you save or update several projects at once.
+          Create a group to act on several projects at once.
         </p>
 
         <div
           v-for="group in store.config.groups"
           :key="group.id"
-          class="group flex items-center gap-1 rounded-md pr-1 transition-colors"
-          :class="store.selectedGroupId === group.id ? 'bg-surface-raised' : 'hover:bg-surface'"
+          class="group flex items-center gap-1 rounded-lg pr-1 transition-colors"
+          :class="
+            store.selectedGroupId === group.id
+              ? 'bg-surface shadow-sm'
+              : 'hover:bg-surface/60'
+          "
         >
           <TdButton
             variant="ghost"
             block
-            class="min-w-0 flex-1 justify-between px-2.5 py-1.5 text-xs"
+            class="min-w-0 flex-1 justify-between px-2.5 py-2 text-[13px]"
             :class="
               store.selectedGroupId === group.id
-                ? 'font-semibold text-primary'
+                ? 'font-medium text-fg'
                 : 'text-fg-muted hover:text-fg'
             "
             @click="store.selectGroup(group.id)"
           >
-            <span class="flex min-w-0 items-center gap-2">
-              <span
-                class="h-2 w-2 shrink-0 rounded-full"
-                :style="groupColorStyle(group.color)"
-              ></span>
-              <span class="truncate">{{ group.name }}</span>
+            <span class="flex w-full items-center justify-between gap-2">
+              <span class="flex min-w-0 items-center gap-2">
+                <span
+                  class="h-2 w-2 shrink-0 rounded-full"
+                  :style="groupColorStyle(group.color)"
+                ></span>
+                <span class="truncate">{{ group.name }}</span>
+              </span>
+              <span class="text-[11px] text-fg-dim">{{ repoCount(group) }}</span>
             </span>
-            <TdBadge variant="neutral">{{ repoCount(group) }}</TdBadge>
           </TdButton>
           <TdButton
             variant="ghost"
             size="sm"
-            class="p-1 opacity-0 transition-all group-hover:opacity-100"
-            title="Edit project group"
-            aria-label="Edit project group"
+            class="p-1 text-fg-dim opacity-0 transition-opacity group-hover:opacity-100"
+            title="Edit group"
+            aria-label="Edit group"
             @click.stop="store.openGroupEditor(group)"
           >
-            <template #icon-left><Pencil /></template>
+            <template #icon-left><Pencil class="h-3.5 w-3.5" /></template>
           </TdButton>
         </div>
 
-        <div
-          class="flex items-center justify-between px-2.5 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-fg-muted"
-        >
-          <span>Project folders</span>
+        <div class="flex items-center justify-between px-2 pb-1 pt-5">
+          <span class="text-[11px] font-medium text-fg-muted">Folders</span>
           <TdButton
             variant="ghost"
             size="sm"
-            class="p-0.5"
-            title="Add project folder"
-            aria-label="Add project folder"
+            class="p-0.5 text-fg-dim"
+            title="Add folder"
+            aria-label="Add folder"
             @click="store.openAddScanPath"
           >
-            <template #icon-left><Plus /></template>
+            <template #icon-left><Plus class="h-3.5 w-3.5" /></template>
           </TdButton>
         </div>
 
         <p
           v-if="store.config.scanPaths.length === 0"
-          class="px-2.5 py-1 text-[11px] leading-relaxed text-fg-dim"
+          class="px-2.5 pb-1 text-[11px] leading-relaxed text-fg-dim"
         >
-          Add the folder where your projects live. We will find the Git projects inside it.
+          Add the folder where your projects live.
         </p>
 
         <div
           v-for="scanPath in store.config.scanPaths"
           :key="scanPath.id"
-          class="group flex items-center gap-1 rounded-md px-1.5 py-1 transition-colors hover:bg-surface"
+          class="group flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface"
         >
           <TdButton
             variant="ghost"
             size="sm"
             class="p-0.5"
-            :class="scanPath.enabled ? 'text-primary' : 'text-fg-dim'"
+            :class="scanPath.enabled ? 'text-fg-muted' : 'text-fg-dim'"
             :title="scanPath.enabled ? 'Stop looking in this folder' : 'Look in this folder again'"
             :aria-label="
               scanPath.enabled ? 'Stop looking in this folder' : 'Look in this folder again'
@@ -168,12 +179,12 @@ async function removeScanPath(id: string, path: string): Promise<void> {
             @click="store.toggleScanPath(scanPath)"
           >
             <template #icon-left>
-              <Eye v-if="scanPath.enabled" />
-              <EyeOff v-else />
+              <Eye v-if="scanPath.enabled" class="h-3.5 w-3.5" />
+              <EyeOff v-else class="h-3.5 w-3.5" />
             </template>
           </TdButton>
           <span
-            class="min-w-0 flex-1 truncate font-mono text-[10px]"
+            class="min-w-0 flex-1 truncate text-[11px]"
             :class="scanPath.enabled ? 'text-fg-muted' : 'text-fg-dim line-through'"
             :title="scanPath.path"
           >
@@ -182,55 +193,82 @@ async function removeScanPath(id: string, path: string): Promise<void> {
           <TdButton
             variant="ghost"
             size="sm"
-            class="p-0.5 text-fg-dim opacity-0 transition-all hover:text-error-fg group-hover:opacity-100"
-            title="Remove this folder from the list"
-            aria-label="Remove this folder from the list"
+            class="p-0.5 text-fg-dim opacity-0 transition-opacity hover:text-error-fg group-hover:opacity-100"
+            title="Remove folder"
+            aria-label="Remove folder"
             @click="removeScanPath(scanPath.id, scanPath.path)"
           >
-            <template #icon-left><X /></template>
+            <template #icon-left><X class="h-3.5 w-3.5" /></template>
           </TdButton>
         </div>
       </nav>
     </div>
 
-    <div class="border-t border-border p-3">
-      <TdButton
-        variant="secondary"
-        block
-        class="text-xs"
-        :disabled="store.isScanning"
-        @click="store.scanRepositories"
-      >
-        <template #icon-left>
-          <TdSpinner v-if="store.isScanning" size="sm" />
-          <RefreshCw v-else />
-        </template>
-        <span>Look for new projects</span>
+    <div class="space-y-2 border-t border-border p-3">
+      <TdButton variant="primary" block size="sm" @click="store.openAddScanPath">
+        <template #icon-left><FolderSearch class="h-3.5 w-3.5" /></template>
+        <span>Add folder</span>
       </TdButton>
-      <TdButton
-        variant="ghost"
-        block
-        size="sm"
-        class="mt-2 py-1.5 text-[11px]"
-        title="Reopen the setup wizard"
-        @click="store.openOnboarding(true)"
-      >
-        <template #icon-left><Sparkles /></template>
-        <span>Setup</span>
-      </TdButton>
-      <TdButton
-        variant="ghost"
-        block
-        size="sm"
-        class="mt-2 py-1.5 text-[11px]"
-        @click="store.openAddScanPath"
-      >
-        <template #icon-left><FolderSearch /></template>
-        <span>Add project folder</span>
-      </TdButton>
-      <p class="mt-2 text-center text-[10px] uppercase tracking-widest text-fg-dim">
-        {{ backendMode === 'web' ? 'Web browser version' : 'Desktop app' }}
-      </p>
+
+      <div class="flex items-center gap-1">
+        <TdButton
+          variant="ghost"
+          size="sm"
+          class="flex-1 justify-start text-[11px] text-fg-muted"
+          :disabled="store.isScanning"
+          @click="store.scanRepositories"
+        >
+          <template #icon-left>
+            <TdSpinner v-if="store.isScanning" size="sm" />
+            <RefreshCw v-else class="h-3.5 w-3.5" />
+          </template>
+          <span>{{ store.isScanning ? 'Looking…' : 'Look again' }}</span>
+        </TdButton>
+
+        <TdButton
+          variant="ghost"
+          size="sm"
+          class="p-2 text-fg-muted"
+          :title="mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+          :aria-label="mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+          @click="toggleTheme"
+        >
+          <template #icon-left>
+            <Sun v-if="mode === 'dark'" class="h-3.5 w-3.5" />
+            <Moon v-else class="h-3.5 w-3.5" />
+          </template>
+        </TdButton>
+
+        <TdMenu align="end" aria-label="More options">
+          <template #trigger="{ open }">
+            <TdButton
+              variant="ghost"
+              size="sm"
+              class="p-2 text-fg-muted"
+              aria-label="More options"
+              aria-haspopup="menu"
+              :aria-expanded="open"
+            >
+              <template #icon-left><MoreHorizontal class="h-3.5 w-3.5" /></template>
+            </TdButton>
+          </template>
+          <TdMenuItem @select="store.openOnboarding(true)">
+            <template #icon><Sparkles class="h-3.5 w-3.5" /></template>
+            Run setup again
+          </TdMenuItem>
+          <TdMenuItem @select="store.openHelp">
+            <template #icon><HelpCircle class="h-3.5 w-3.5" /></template>
+            How this works
+          </TdMenuItem>
+        </TdMenu>
+      </div>
     </div>
   </aside>
 </template>
+
+<style scoped>
+.sidebar-nav :deep(.td-button__label) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+</style>

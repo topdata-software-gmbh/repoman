@@ -4,6 +4,7 @@ import {
   Archive,
   ArchiveRestore,
   ArrowDownToLine,
+  FolderSearch,
   GitBranch,
   HelpCircle,
   MoreHorizontal,
@@ -27,7 +28,7 @@ const selectedBranch = ref('');
 const switching = ref(false);
 const activeAction = ref<string | null>(null);
 
-const busy = computed(() => store.isLoading || store.isScanning);
+const busy = computed(() => store.isLoading);
 const canSwitchBranch = computed(
   () => !busy.value && !switching.value && store.groupBranches.length > 0,
 );
@@ -100,7 +101,7 @@ async function runAction(
 
 <template>
   <header
-    class="flex min-h-16 shrink-0 select-none flex-wrap items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2.5"
+    class="flex min-h-14 shrink-0 select-none flex-wrap items-center justify-between gap-3 border-b border-border bg-surface px-4 py-2"
   >
     <div class="flex min-w-0 flex-wrap items-center gap-3">
       <span class="max-w-48 truncate text-sm font-semibold text-fg">
@@ -111,7 +112,7 @@ async function runAction(
         {{ store.filteredRepositories.length === 1 ? 'project' : 'projects' }}
       </TdBadge>
       <span
-        v-if="store.filteredRepositories.length > 0"
+        v-if="store.cleanRepositoryCount > 0"
         class="hidden items-center gap-1 text-[11px] text-success-fg lg:flex"
         title="Projects with no changes waiting"
       >
@@ -131,7 +132,7 @@ async function runAction(
           class="text-primary"
         />
         <GitBranch v-else class="h-3.5 w-3.5 text-primary" />
-        <span class="text-[11px] font-medium text-fg-muted">Working on</span>
+        <span class="text-[11px] text-fg-muted">Branch</span>
         <TdSelect
           v-model="branchSelection"
           :options="branchOptions"
@@ -185,20 +186,6 @@ async function runAction(
         <span>Send changes</span>
       </TdButton>
 
-      <TdButton
-        variant="ghost"
-        size="sm"
-        :disabled="busy"
-        title="Rescan your project folders"
-        aria-label="Rescan your project folders"
-        @click="store.scanRepositories"
-      >
-        <template #icon-left>
-          <TdSpinner v-if="store.isScanning" size="sm" />
-          <RefreshCw v-else />
-        </template>
-      </TdButton>
-
       <TdMenu aria-label="More Git actions">
         <template #trigger="{ open }">
           <TdButton
@@ -235,22 +222,21 @@ async function runAction(
           Bring back set-aside changes
           <template #description>Restore the last set of changes in all projects.</template>
         </TdMenuItem>
+        <TdMenuItem :disabled="busy" @select="store.scanRepositories">
+          <template #icon><FolderSearch /></template>
+          Look for new projects
+          <template #description>Check your folders for projects again.</template>
+        </TdMenuItem>
         <TdMenuItem @select="store.openGitLog()">
           <template #icon><Terminal /></template>
           What Git did
           <template #description>See the exact commands behind the last actions.</template>
         </TdMenuItem>
+        <TdMenuItem @select="store.openHelp">
+          <template #icon><HelpCircle /></template>
+          How this works
+        </TdMenuItem>
       </TdMenu>
-
-      <TdButton
-        variant="ghost"
-        size="sm"
-        title="How this works"
-        aria-label="How this works"
-        @click="store.openHelp"
-      >
-        <template #icon-left><HelpCircle /></template>
-      </TdButton>
     </div>
   </header>
 </template>

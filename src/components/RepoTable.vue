@@ -33,8 +33,8 @@ const hasScanPaths = computed(() => store.config.scanPaths.length > 0);
           <template #prefix><Search class="h-3.5 w-3.5 text-fg-muted" /></template>
         </TdInput>
       </div>
-      <span class="shrink-0 font-mono text-[11px] text-fg-muted">
-        {{ rows.length }} of {{ store.filteredRepositories.length }} shown
+      <span v-if="search.trim()" class="shrink-0 text-[11px] text-fg-muted">
+        {{ rows.length }} of {{ store.filteredRepositories.length }}
       </span>
     </div>
 
@@ -59,14 +59,14 @@ const hasScanPaths = computed(() => store.config.scanPaths.length > 0);
         </div>
 
         <template v-if="!hasScanPaths">
-          <h2 class="text-base font-semibold text-fg">Let's find your projects</h2>
+          <h2 class="text-[15px] font-semibold text-fg">Let's find your projects</h2>
           <p class="mt-1.5 max-w-md text-sm leading-relaxed text-fg-muted">
             Choose the folder where your themes and projects live. We will look inside it and add
             every Git project we find.
           </p>
           <div class="mt-4 flex items-center gap-2">
             <TdButton variant="primary" @click="store.openAddScanPath">
-              Add project folder
+              Add folder
             </TdButton>
             <TdButton variant="ghost" @click="store.openHelp">
               <template #icon-left><BookOpen /></template>
@@ -78,7 +78,7 @@ const hasScanPaths = computed(() => store.config.scanPaths.length > 0);
         <template
           v-else-if="store.selectedGroupId !== 'all' && store.filteredRepositories.length === 0"
         >
-          <h2 class="text-base font-semibold text-fg">No projects in this group</h2>
+          <h2 class="text-[15px] font-semibold text-fg">No projects in this group</h2>
           <p class="mt-1.5 max-w-md text-sm leading-relaxed text-fg-muted">
             Add projects to <span class="text-fg">{{ store.currentGroup?.name }}</span> to use the
             buttons above for the whole group.
@@ -89,21 +89,21 @@ const hasScanPaths = computed(() => store.config.scanPaths.length > 0);
         </template>
 
         <template v-else-if="store.filteredRepositories.length === 0">
-          <h2 class="text-base font-semibold text-fg">No Git projects found</h2>
+          <h2 class="text-[15px] font-semibold text-fg">No Git projects found</h2>
           <p class="mt-1.5 max-w-md text-sm leading-relaxed text-fg-muted">
             We looked inside your folders but did not find a Git project. Check that the folder is
             correct, or add another folder.
           </p>
           <div class="mt-4 flex gap-2">
-            <TdButton variant="secondary" @click="store.scanRepositories">Scan again</TdButton>
+            <TdButton variant="secondary" @click="store.scanRepositories">Look again</TdButton>
             <TdButton variant="primary" @click="store.openAddScanPath">
-              Add project folder
+              Add folder
             </TdButton>
           </div>
         </template>
 
         <template v-else>
-          <h2 class="text-base font-semibold text-fg">No matching projects</h2>
+          <h2 class="text-[15px] font-semibold text-fg">No matching projects</h2>
           <p class="mt-1.5 text-sm text-fg-muted">Try a different search, or clear the filter.</p>
           <TdButton class="mt-4" variant="ghost" @click="search = ''">Clear search</TdButton>
         </template>

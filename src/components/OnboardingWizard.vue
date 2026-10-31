@@ -10,7 +10,7 @@ import OnboardingStepReady from './onboarding/OnboardingStepReady.vue';
 
 const store = useRepoStore();
 const heading = ref<HTMLElement | null>(null);
-const steps = ['Find projects', 'Choose repos', 'Confirm groups', 'Ready'] as const;
+const steps = ['Find projects', 'Choose projects', 'Confirm groups', 'Ready'] as const;
 const currentLabel = computed(() => steps[store.onboardingStep] ?? steps[0]);
 </script>
 
@@ -28,7 +28,7 @@ const currentLabel = computed(() => steps[store.onboardingStep] ?? steps[0]);
       <div class="w-full">
         <div class="flex items-center justify-between gap-4">
           <div class="min-w-0">
-            <p class="text-xs font-semibold uppercase tracking-widest text-primary">
+            <p class="text-xs font-medium text-fg-muted">
               Step {{ store.onboardingStep + 1 }} of 4 · {{ currentLabel }}
             </p>
             <h1

@@ -1,12 +1,23 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="light dark" />
     <title>Git Repo Manager</title>
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('topdata.theme.v1');
+          document.documentElement.dataset.theme =
+            stored === 'dark' || stored === 'light' ? stored : 'light';
+        } catch (error) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
   </head>
-  <body class="bg-canvas text-fg">
+  <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

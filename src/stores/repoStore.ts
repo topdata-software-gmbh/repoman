@@ -51,6 +51,26 @@ let nextToastId = 0;
 let branchRequestId = 0;
 
 const GIT_STEP_LIMIT = 200;
+const REPOSITORY_CACHE_KEY = 'git-repo-manager.repositories.v1';
+
+function readRepositoryCache(): Repository[] {
+  try {
+    const raw = window.localStorage.getItem(REPOSITORY_CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as Repository[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeRepositoryCache(repositories: Repository[]): void {
+  try {
+    window.localStorage.setItem(REPOSITORY_CACHE_KEY, JSON.stringify(repositories));
+  } catch {
+    /* Storage can be full or unavailable; the next scan will rebuild the list. */
+  }
+}
 
 const ACTION_LABELS: Record<
   'fetch' | 'pull' | 'push' | 'stash' | 'stash_pop',
@@ -93,7 +113,7 @@ export const useRepoStore = defineStore('repo', () => {
     scanPath: '',
     ownerNames: '',
     groupingStyle: 'topLevel' as GroupingStyle,
-    maxDepth: 8,
+    maxDepth: 4,
   });
   const onboardingSelectedPaths = ref<string[]>([]);
   const onboardingGroups = ref<Array<SuggestedGroup & { included: boolean }>>([]);
@@ -363,6 +383,9 @@ export const useRepoStore = defineStore('repo', () => {
 
   async function initialize(skipOnboarding = false): Promise<void> {
     await loadConfig();
+    if (repositories.value.length === 0) {
+      repositories.value = readRepositoryCache();
+    }
     await scanRepositories();
     if (!skipOnboarding && shouldShowOnboarding.value) {
       await openOnboarding(false);
@@ -386,6 +409,7 @@ export const useRepoStore = defineStore('repo', () => {
       if (paths.length === 0) {
         repositories.value = [];
         groupBranches.value = [];
+        writeRepositoryCache([]);
         return;
       }
 
@@ -395,6 +419,7 @@ export const useRepoStore = defineStore('repo', () => {
         maxDepth,
       );
       repositories.value = found;
+      writeRepositoryCache(found);
       await loadGroupBranches();
     } catch (error) {
       showToast('error', 'Could not look for projects', String(error));
@@ -586,7 +611,7 @@ export const useRepoStore = defineStore('repo', () => {
       scanPath: onboarding.scanPath ?? config.value.scanPaths[0]?.path ?? '',
       ownerNames: onboarding.ownerNames.join(', '),
       groupingStyle: onboarding.groupingStyle ?? 'topLevel',
-      maxDepth: config.value.scanPaths[0]?.maxDepth ?? 8,
+      maxDepth: config.value.scanPaths[0]?.maxDepth ?? 4,
     };
     onboardingSelectedPaths.value = onboarding.selectedRepoPaths.filter((path) =>
       repositories.value.some((repo) => repo.path === path),

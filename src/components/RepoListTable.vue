@@ -53,45 +53,54 @@ function isRowBusy(repo: Repository): boolean {
 
 <template>
   <div class="min-h-0 flex-1 overflow-auto">
-    <table class="w-full min-w-[780px] border-collapse text-left">
+    <table class="w-full min-w-[720px] border-collapse text-left">
       <thead
-        class="sticky top-0 z-10 border-b border-border bg-canvas/95 text-[10px] font-semibold uppercase tracking-wider text-fg-muted backdrop-blur"
+        class="sticky top-0 z-10 border-b border-border bg-surface/95 text-[11px] font-medium text-fg-muted backdrop-blur"
       >
         <tr>
           <th class="px-4 py-2.5">Project</th>
           <th class="px-4 py-2.5">Status</th>
-          <th class="px-4 py-2.5">Latest checkpoint</th>
-          <th class="w-36 px-3 py-2.5"><span class="sr-only">Actions</span></th>
+          <th class="px-4 py-2.5">Last change</th>
+          <th class="w-28 px-3 py-2.5"><span class="sr-only">Actions</span></th>
         </tr>
       </thead>
       <tbody class="divide-y divide-border">
         <tr
           v-for="repo in props.repos"
           :key="repo.id"
-          class="transition-colors hover:bg-surface-hover"
+          class="group transition-colors hover:bg-canvas/70"
           :class="{ 'opacity-60': !repo.isAccessible }"
         >
-          <td class="px-4 py-3">
+          <td class="px-4 py-3.5">
             <div class="flex items-center gap-2 text-sm font-medium text-fg">
               <span class="truncate">{{ repo.name }}</span>
               <TdBadge v-if="repo.state.isDetachedHead" variant="warning">not on a branch</TdBadge>
             </div>
             <div class="mt-1 flex flex-wrap items-center gap-2">
               <TdBadge
-                :variant="repo.state.isDetachedHead ? 'warning' : 'primary'"
+                v-if="repo.state.isDetachedHead"
+                variant="warning"
                 class="gap-1 font-mono"
                 title="The branch (version) you are working on"
               >
                 <template #icon><GitBranch /></template>
                 {{ branchLabel(repo) }}
               </TdBadge>
+              <span
+                v-else
+                class="inline-flex items-center gap-1 font-mono text-[10px] text-fg-muted"
+                title="The branch (version) you are working on"
+              >
+                <GitBranch class="h-3 w-3" />
+                {{ branchLabel(repo) }}
+              </span>
               <span class="max-w-[28rem] truncate text-[10px] text-fg-dim" :title="repo.path">
                 {{ repo.path }}
               </span>
             </div>
           </td>
 
-          <td class="px-4 py-3">
+          <td class="px-4 py-3.5">
             <div class="flex max-w-xs flex-wrap items-center gap-1.5">
               <TdBadge
                 v-for="badge in statusBadges(repo)"
@@ -107,7 +116,7 @@ function isRowBusy(repo: Repository): boolean {
             </div>
           </td>
 
-          <td class="px-4 py-3">
+          <td class="px-4 py-3.5">
             <div v-if="repo.state.headCommitHash" class="min-w-0">
               <p class="max-w-md truncate text-xs text-fg" :title="repo.state.headCommitMessage">
                 {{ repo.state.headCommitMessage }}
@@ -121,8 +130,10 @@ function isRowBusy(repo: Repository): boolean {
             </span>
           </td>
 
-          <td class="px-3 py-3">
-            <div class="flex items-center justify-end gap-1.5">
+          <td class="px-3 py-3.5">
+            <div
+              class="flex items-center justify-end gap-1.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100"
+            >
               <TdButton
                 v-if="!repo.state.isClean"
                 variant="ghost"

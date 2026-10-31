@@ -53,13 +53,13 @@ async function submit(): Promise<void> {
 <template>
   <TdModal
     :open="store.scanModalOpen"
-    title="Add project folder"
+    title="Add a folder"
     @update:open="onOpenChange"
   >
     <form id="scan-path-form" class="scan-form" @submit.prevent="submit">
       <TdFormField
         label="Where are your projects?"
-        hint="Paste the folder where your themes live, for example ~/devel or /home/you/projects. We look inside it for Git projects and skip things like node_modules and build output."
+        hint="For example ~/devel or /home/you/projects. We skip folders like node_modules and build output."
         required
         v-slot="{ id, 'aria-describedby': describedBy, invalid, required }"
       >
@@ -76,11 +76,18 @@ async function submit(): Promise<void> {
         />
       </TdFormField>
 
-      <div class="scan-form__depth">
-        <TdFormField label="How deep to look" v-slot="{ id }">
-          <TdInput :id="id" v-model="maxDepth" type="number" min="1" max="12" />
-        </TdFormField>
-      </div>
+      <details class="scan-form__advanced">
+        <summary class="cursor-pointer text-xs font-medium text-fg-muted">More options</summary>
+        <div class="scan-form__depth mt-3">
+          <TdFormField
+            label="How deep to look"
+            hint="Nested projects can sit a few folders deep."
+            v-slot="{ id }"
+          >
+            <TdInput :id="id" v-model="maxDepth" type="number" min="1" max="12" />
+          </TdFormField>
+        </div>
+      </details>
     </form>
 
     <template #footer>

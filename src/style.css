@@ -3,6 +3,29 @@
 @tailwind utilities;
 
 :root {
+  --td-font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
+  --td-font-heading: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+
+  --td-color-canvas: rgb(245 245 247);
+  --td-color-surface: white;
+  --td-color-surface-raised: white;
+  --td-color-surface-hover: rgb(245 245 247);
+  --td-color-border: rgba(0, 0, 0, 0.07);
+  --td-color-border-strong: rgba(0, 0, 0, 0.14);
+  --td-color-fg: rgb(29 29 31);
+  --td-color-fg-muted: rgb(110 110 115);
+  --td-color-fg-dim: rgb(142 142 147);
+
+  --td-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --td-shadow-md: 0 10px 30px rgba(0, 0, 0, 0.08);
+  --td-shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.14);
+}
+
+html[data-theme='dark'] {
   color-scheme: dark;
 }
 
@@ -27,17 +50,19 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--td-color-canvas);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--td-color-border-strong);
+  background: color-mix(in srgb, var(--td-color-fg-dim) 35%, transparent);
   border-radius: var(--td-radius-full);
-  border: 2px solid var(--td-color-canvas);
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--td-color-fg-dim);
+  background: color-mix(in srgb, var(--td-color-fg-muted) 45%, transparent);
+  background-clip: content-box;
 }
 
 select option {
