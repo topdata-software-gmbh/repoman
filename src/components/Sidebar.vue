@@ -78,7 +78,7 @@ function scanChipLabel(): string {
       </div>
     </TdSidebarHeader>
 
-    <TdSidebarBody>
+    <TdSidebarBody as="nav">
       <TdSidebarSection>
         <TdSidebarItem
           icon="layers"
@@ -120,13 +120,16 @@ function scanChipLabel(): string {
             :aria-current="store.selectedGroupId === group.id ? 'page' : undefined"
             @click="store.selectGroup(group.id)"
           >
-          <template #icon>
-            <span class="h-2 w-2 shrink-0 rounded-full" :style="groupColorStyle(group.color)"></span>
-          </template>
-          <span class="truncate">{{ group.name }}</span>
-          <template #trailing>
-            <span class="text-[11px] text-fg-dim">{{ repoCount(group) }}</span>
-          </template>
+            <template #icon>
+              <span
+                class="h-2 w-2 shrink-0 rounded-full"
+                :style="groupColorStyle(group.color)"
+              ></span>
+            </template>
+            <span class="truncate">{{ group.name }}</span>
+            <template #trailing>
+              <span class="text-[11px] text-fg-dim">{{ repoCount(group) }}</span>
+            </template>
             <template #actions>
               <TdButton
                 variant="ghost"
@@ -166,29 +169,29 @@ function scanChipLabel(): string {
 
         <div v-for="scanPath in store.config.scanPaths" :key="scanPath.id" class="group">
           <TdSidebarItem as="div">
-          <template #leading>
-            <TdButton
-              variant="ghost"
-              size="sm"
-              class="p-0.5"
-              :class="scanPath.enabled ? 'text-fg-muted' : 'text-fg-dim'"
-              :title="scanPath.enabled ? t('sidebar.stopLooking') : t('sidebar.startLooking')"
-              :aria-label="scanPath.enabled ? t('sidebar.stopLooking') : t('sidebar.startLooking')"
-              @click="store.toggleScanPath(scanPath)"
-            >
-              <template #icon-left>
-                <TdIcon :name="scanPath.enabled ? 'eye' : 'eye-off'" />
-              </template>
-            </TdButton>
-          </template>
+            <template #leading>
+              <TdButton
+                variant="ghost"
+                size="sm"
+                class="p-0.5"
+                :class="scanPath.enabled ? 'text-fg-muted' : 'text-fg-dim'"
+                :title="scanPath.enabled ? t('sidebar.stopLooking') : t('sidebar.startLooking')"
+                :aria-label="scanPath.enabled ? t('sidebar.stopLooking') : t('sidebar.startLooking')"
+                @click="store.toggleScanPath(scanPath)"
+              >
+                <template #icon-left>
+                  <TdIcon :name="scanPath.enabled ? 'eye' : 'eye-off'" />
+                </template>
+              </TdButton>
+            </template>
 
-          <span
-            class="min-w-0 flex-1 truncate text-[11px]"
-            :class="scanPath.enabled ? 'text-fg-muted' : 'text-fg-dim line-through'"
-            :title="scanPath.path"
-          >
-            {{ scanPath.path }}
-          </span>
+            <span
+              class="min-w-0 flex-1 truncate text-[11px]"
+              :class="scanPath.enabled ? 'text-fg-muted' : 'text-fg-dim line-through'"
+              :title="scanPath.path"
+            >
+              {{ scanPath.path }}
+            </span>
 
             <template #actions>
               <TdButton
