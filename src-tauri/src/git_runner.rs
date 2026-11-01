@@ -234,6 +234,66 @@ impl GitRunner {
             .is_some_and(|output| !output.trim().is_empty())
     }
 
+    /// Read-only: the exact change set a commit would take (`git diff HEAD`).
+    /// `None` means the command failed — typically an unborn HEAD.
+    pub async fn diff_head(repo_path: &Path) -> Option<String> {
+        Self::run_git_stdout(repo_path, &["diff", "HEAD", "--no-color"]).await
+    }
+
+    /// Read-only: every untracked file, descending into directories
+    /// (`status --porcelain=v1 --untracked-files=all`).
+    pub async fn untracked_files(repo_path: &Path) -> Vec<String> {
+        match Self::run_git_cmd(
+            repo_path,
+            &["status", "--porcelain=v1", "--untracked-files=all"],
+        )
+        .await
+        {
+            Ok(output) if output.status.success() => String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .filter(|line| line.starts_with("?? "))
+                .map(|line| line[3..].trim().to_string())
+                .filter(|path| !path.is_empty())
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Read-only: a file as recorded in the current HEAD (`git show HEAD:<file>`).
+    pub async fn show_head_file(repo_path: &Path, relative_path: &str) -> Option<String> {
+        Self::run_git_stdout(repo_path, &["show", &format!("HEAD:{relative_path}")]).await
+    }
+
+    /// Read-only: the last `count` commit subjects for message-style alignment.
+    pub async fn recent_subjects(repo_path: &Path, count: usize) -> Vec<String> {
+        let limit = count.max(1).to_string();
+        Self::run_git_stdout(repo_path, &["log", "-n", &limit, "--format=%s"])
+            .await
+            .map(|output| {
+                output
+                    .lines()
+                    .map(|line| line.trim().to_string())
+                    .filter(|line| !line.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Read-only: unmerged paths in the porcelain status (same codes as `parse_status`).
+    pub async fn has_conflicts(repo_path: &Path) -> bool {
+        match Self::run_git_cmd(repo_path, &["status", "--porcelain=v1"]).await {
+            Ok(output) if output.status.success() => String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .filter(|line| line.len() >= 2)
+                .any(|line| {
+                    let x = line.as_bytes()[0] as char;
+                    let y = line.as_bytes()[1] as char;
+                    x == 'U' || y == 'U' || (x == 'A' && y == 'A') || (x == 'D' && y == 'D')
+                }),
+            _ => false,
+        }
+    }
+
     pub(crate) async fn has_upstream(repo_path: &Path) -> bool {
         Self::run_git_stdout(
             repo_path,

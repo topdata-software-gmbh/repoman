@@ -1,6 +1,7 @@
 use crate::events::AppEvent;
 use crate::git_log::{GitObserver, GitStepEvent};
 use crate::git_runner::GitRunner;
+use crate::scanner::{ScanObserver, ScanProgressEvent};
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -21,7 +22,7 @@ pub struct EventBus {
 
 impl EventBus {
     pub fn new() -> Self {
-        let (sender, _) = broadcast::channel(512);
+        let (sender, _) = broadcast::channel(8192);
         Self { sender }
     }
 
@@ -37,6 +38,18 @@ impl EventBus {
 impl GitObserver for EventBus {
     fn on_step(&self, event: &GitStepEvent) {
         let _ = self.sender.send(AppEvent::GitStep(event.clone()));
+    }
+}
+
+impl ScanObserver for EventBus {
+    fn on_progress(&self, event: &ScanProgressEvent) {
+        let _ = self.sender.send(AppEvent::ScanProgress(event.clone()));
+    }
+}
+
+impl crate::service::CommitGenObserver for EventBus {
+    fn on_commit_gen(&self, event: &crate::commitgen::CommitGenEvent) {
+        let _ = self.sender.send(AppEvent::CommitGen(event.clone()));
     }
 }
 

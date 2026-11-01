@@ -36,7 +36,7 @@ the existing `GitObserver` trait), `service::discover_repositories` emits
 
 **Performance Goals**: ≥2 progress updates/sec during a walk; scan wall-clock overhead ≤5% (SC-005); ≤500 rendered log rows with exact counts (FR-013)
 
-**Constraints**: tick events throttled to ≤1 per 400 ms; found/inspected/done never dropped (unbounded); no new HTTP endpoint (single `/api/events`); scanner must not depend on Tauri types; DE + EN strings for all new text (FR-012)
+**Constraints**: tick events throttled to ≤1 per 400 ms with a ≤500 ms heartbeat floor (SC-001); found/inspected/done never dropped (unbounded); no new HTTP endpoint (single `/api/events`); scanner must not depend on Tauri types; DE + EN strings for all new text (FR-012)
 
 **Scale/Scope**: roots with up to ~100k directories and ~10k repositories per scan; 1 new Rust event payload + trait, 1 new Vue component, store + wiring changes
 
@@ -73,9 +73,9 @@ specs/001-scan-progress-log/
 
 ```text
 src-tauri/src/
-├── scanner.rs                   # MODIFY: ScanObserver sink in scan_path; tick throttle + found hook
+├── scanner.rs                   # MODIFY: scan_path gains ScanObserver sink (found hook + tick throttle);
+│                                #   NEW here: ScanProgressEvent payload + ScanObserver trait (mirrors git_log.rs, R2)
 ├── git_log.rs                   # REFERENCE: GitObserver trait pattern to mirror
-├── scan_log.rs (or models.rs)   # NEW/EXT: ScanProgressEvent payload + ScanObserver impl for EventBus
 ├── events.rs                    # MODIFY: AppEvent::ScanProgress(ScanProgressEvent)
 ├── watcher.rs                   # MODIFY: EventBus implements ScanObserver (publish)
 ├── service.rs                   # MODIFY: discover_repositories emits started/inspected/done(+error)

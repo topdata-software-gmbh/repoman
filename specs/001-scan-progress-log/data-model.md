@@ -14,6 +14,7 @@ slice in `repoStore.ts`; "Backend" = Rust types emitted on the bus.
 | `startedAt` | epoch ms | `started.started_at` |
 | `entries` | Map<path, FoundRepoEntry> | insertion order = discovery order |
 | `finished` | { count, elapsedMs, error? } \| null | from `done` |
+| `summaryVisible` | bool | true for ~10 s after `done` (chip stays clickable, FR-015); cleared by the timer, a modal reopen, or the next `started` |
 
 **Validation rules**
 
@@ -69,7 +70,7 @@ is unconstructable — the frontend may assume well-formed payloads.
 | Emitter | Phases | Notes |
 |---|---|---|
 | `service::discover_repositories` | started, inspected, done | `done` on **every** exit path (R9) |
-| `scanner::scan_path` via `ScanObserver` | found, tick | tick throttled ≤1/400 ms (R4) |
+| `scanner::scan_path` via `ScanObserver` | found, tick | tick throttled ≤1/400 ms + ≤500 ms heartbeat (R4) |
 | `EventBus` | forwards all | capacity 8192 (R5) |
 
 ## E5. Relationships

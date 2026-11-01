@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skipped-step markers, and oh-my-zsh alias hints.
 - Git actions are declared once in `src-tauri/macros/git-actions.yaml` and executed
   from that template, so the log wording and the behaviour share one source.
+- Refresh button feedback: one success or error toast per manual refresh click,
+  naming the project and summarizing its branch and status in German and English.
+  Background refreshes stay silent.
 
 ### Changed
 

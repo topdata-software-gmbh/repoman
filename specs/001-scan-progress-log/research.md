@@ -29,7 +29,7 @@ unknowns against the actual code.
 
 ## R4. Throttling the tick stream
 
-- **Decision**: `tick` is emitted from the blocking walk at most once per 400 ms using a `Mutex<Instant>`/last-emit comparison in the closure (same constant value as the watcher's `DEBOUNCE`). `found`/`inspected`/`started`/`done` are never throttled.
+- **Decision**: `tick` is emitted from the blocking walk at most once per 400 ms using a `Mutex<Instant>`/last-emit comparison in the closure (same constant value as the watcher's `DEBOUNCE`). Heartbeat floor: while a root is being walked, a tick is re-emitted at least every ~500 ms even if the directory did not change, so SC-001's "≥2 updates/sec" is a guarantee, not a side effect of traffic. `found`/`inspected`/`started`/`done` are never throttled.
 - **Rationale**: the walker visits ~100k dirs; 400 ms ≈ the max useful UI rate (spec: ≥2 updates/sec). Reusing 400 ms keeps one recognizable constant in the codebase.
 - **Alternatives considered**: emit per directory + drop in the frontend (floods both transports); 1 s interval (violates SC-001 "at least twice per second").
 

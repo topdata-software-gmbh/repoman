@@ -31,7 +31,7 @@ async function refresh(path: string): Promise<void> {
   if (refreshing.value) return;
   refreshing.value = path;
   try {
-    await store.refreshSingleRepo(path);
+    await store.refreshRepoWithToast(path);
   } finally {
     refreshing.value = null;
   }

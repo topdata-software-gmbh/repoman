@@ -3,7 +3,7 @@ name = "repoman"
 version = "0.1.0"
 description = "Multi-Git GUI Manager"
 edition = "2021"
-rust-version = "1.78.0"
+rust-version = "1.80.0"
 
 [build-dependencies]
 tauri-build = { version = "2.0.0", features = [] }
@@ -24,6 +24,11 @@ axum = "0.8"
 tower-http = { version = "0.6", features = ["fs"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
 url = "2"
+# AI commit-message generation seam (specs/002) — ONLY src-tauri/src/commitgen/ may use it.
+# Pinned to a tag; default-features off because the workspace's proc-macro crate is broken at 0.2.6.
+serdes-ai = { git = "https://github.com/janfeddersen-wq/serdesAI", tag = "v0.2.6", default-features = false, features = ["openai"] }
+async-trait = "0.1"
+tracing = "0.1"
 
 [dev-dependencies]
 tempfile = "3"

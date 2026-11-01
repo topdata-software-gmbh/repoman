@@ -24,7 +24,8 @@ mkdir -p deep/a/b/c/d && git init -q deep/a/b/c/d/deep-proj
 ```
 
 1. Start the app with a fresh config (`repoman --config /tmp/scan-demo-config.json` via `pnpm start -- --config …`, or delete the app config) so onboarding runs.
-2. In step 1 enter `/tmp/scan-demo`, depth ≥ 3, submit.
+2. In step 1 enter `/tmp/scan-demo`, depth 6 (deep-proj's `.git` sits 6 levels below
+   the root), submit.
    **Expect (US1):** status line shows the directory currently walked and a count
    that ticks up; changes are visible within 2 s (SC-001); "Prüfe …" line never
    freezes for >0.5 s while work happens.

@@ -36,6 +36,19 @@ const groupingOptions = computed(() => [
   { value: 'single', label: t('onboarding.find.groupingSingle') },
 ]);
 
+// FR-001/FR-002: the line follows the live stream; the old static text stays
+// as the fallback until this run's `started` event arrived.
+const scanningText = computed(() => {
+  const activity = store.scanActivity;
+  if (activity.running) {
+    return t('onboarding.find.progress', {
+      dir: activity.currentDir ?? activity.roots[0] ?? '',
+      count: store.scanActivityCount,
+    });
+  }
+  return t('onboarding.find.scanning');
+});
+
 async function submit(): Promise<void> {
   if (submitting.value) return;
   submitting.value = true;
@@ -131,14 +144,17 @@ async function submit(): Promise<void> {
 
     <TdAlert v-if="store.onboardingError" variant="error">{{ store.onboardingError }}</TdAlert>
 
-    <p
+    <button
       v-if="submitting"
-      class="flex items-center gap-2 text-sm text-fg-muted"
+      type="button"
+      class="flex items-center gap-2 text-left text-sm text-fg-muted hover:text-fg"
       role="status"
+      :title="t('scan.activity.tooltip')"
+      @click="store.openScanModal()"
     >
       <TdSpinner size="sm" />
-      {{ t('onboarding.find.scanning') }}
-    </p>
+      <span>{{ scanningText }}</span>
+    </button>
 
     <div class="flex items-center gap-3">
       <TdButton

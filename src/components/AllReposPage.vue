@@ -89,6 +89,19 @@ const folderLabel = computed(() =>
 
 const hasRepos = computed(() => store.repositories.length > 0);
 const isScanning = computed(() => store.isScanning);
+
+// FR-011: same live stream as onboarding; the old "Prüfe {folders}" text is
+// the fallback until this run's `started` event arrives.
+const scanningLine = computed(() => {
+  const activity = store.scanActivity;
+  if (activity.running) {
+    return t('scan.activity.progress', {
+      dir: activity.currentDir ?? activity.roots[0] ?? folderLabel.value ?? t('allRepos.yourFolders'),
+      count: store.scanActivityCount,
+    });
+  }
+  return t('allRepos.checking', { folders: folderLabel.value || t('allRepos.yourFolders') });
+});
 </script>
 
 <template>
@@ -196,8 +209,8 @@ const isScanning = computed(() => store.isScanning);
 
       <template v-if="isScanning">
         <h2 class="mt-4 text-[15px] font-semibold text-fg">{{ t('allRepos.looking') }}</h2>
-        <p class="mt-1.5 max-w-sm text-sm leading-relaxed text-fg-muted">
-          {{ t('allRepos.checking', { folders: folderLabel || t('allRepos.yourFolders') }) }}
+        <p class="mt-1.5 max-w-sm text-sm leading-relaxed text-fg-muted" role="status">
+          {{ scanningLine }}
         </p>
       </template>
 

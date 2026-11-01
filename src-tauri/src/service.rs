@@ -5,17 +5,75 @@ use crate::models::{
     AppConfig, BranchInfo, FileChange, OnboardingState, OperationResult, RepoGroup, Repository,
     ScanPath,
 };
-use crate::scanner::RepoScanner;
+use crate::scanner::{RepoScanner, ScanObserver, ScanProgressEvent};
 use crate::watcher::WatcherState;
-use std::collections::HashMap;
-use std::path::PathBuf;
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 
 const INSPECTION_CONCURRENCY: usize = 8;
 
+/// Streams per-repository commit-message generation progress onto the typed bus.
+///
+/// Implemented by `EventBus` (desktop + web); tests use [`NullCommitGenObserver`]
+/// or a collecting fake. Mirrors the `GitObserver` / `ScanObserver` seams.
+pub trait CommitGenObserver: Send + Sync {
+    fn on_commit_gen(&self, event: &crate::commitgen::CommitGenEvent);
+}
+
+/// No-op observer for unit tests and callers that ignore the stream.
+pub struct NullCommitGenObserver;
+
+impl CommitGenObserver for NullCommitGenObserver {
+    fn on_commit_gen(&self, _event: &crate::commitgen::CommitGenEvent) {}
+}
+
 pub fn get_config(config: &ConfigManager) -> Result<AppConfig, String> {
     config.snapshot()
+}
+
+/// Starts an AI commit-message run and returns its `runId` immediately
+/// (contracts/generate-commit-messages-command.md C1–C4).
+///
+/// Transport-agnostic: the Tauri command and the web route both delegate here;
+/// all validation happens before any task is spawned.
+pub fn generate_commit_messages(
+    repo_paths: Vec<String>,
+    run_id: Option<String>,
+    config: &ConfigManager,
+    observer: Arc<dyn CommitGenObserver>,
+) -> Result<String, String> {
+    if repo_paths.is_empty() {
+        return Err("no repositories selected".to_string());
+    }
+
+    let mut seen = HashSet::new();
+    for path in &repo_paths {
+        if !seen.insert(path.clone()) {
+            return Err(format!("duplicate repository path: {path}"));
+        }
+        if !GitRunner::resolve_git_dir(Path::new(path)).exists() {
+            return Err(format!("not a git repository: {path}"));
+        }
+    }
+
+    let snapshot = config.snapshot()?;
+    let settings = snapshot.ai.ok_or_else(|| "ai-not-configured".to_string())?;
+    settings
+        .validate()
+        .map_err(|_| "ai-not-configured".to_string())?;
+
+    match run_id {
+        Some(existing) => {
+            if repo_paths.len() != 1 {
+                return Err("retry takes exactly one repository".to_string());
+            }
+            crate::commitgen::retry_repo(&repo_paths[0], &existing, &settings, observer);
+            Ok(existing)
+        }
+        None => Ok(crate::commitgen::run_all(&repo_paths, &settings, observer)),
+    }
 }
 
 pub fn add_scan_path(config: &ConfigManager, mut scan_path: ScanPath) -> Result<AppConfig, String> {
@@ -117,14 +175,82 @@ pub async fn discover_repositories(
     watcher: &WatcherState,
     paths: Vec<String>,
     max_depth: usize,
+    observer: Arc<dyn ScanObserver>,
 ) -> Result<Vec<Repository>, String> {
-    let group_map = config.group_ids_by_path()?;
+    let roots: Vec<String> = paths
+        .into_iter()
+        .filter(|path| !path.trim().is_empty())
+        .collect();
+    let run_id = uuid::Uuid::new_v4().to_string();
+    let started_at = epoch_ms();
+
+    observer.on_progress(&ScanProgressEvent::started(
+        &run_id,
+        roots.clone(),
+        started_at,
+    ));
+
+    let outcome = run_discovery(
+        config,
+        watcher,
+        &roots,
+        max_depth,
+        &run_id,
+        Arc::clone(&observer),
+    )
+    .await;
+
+    let (discovered, error) = match outcome {
+        Ok(ok) => ok,
+        Err(message) => {
+            observer.on_progress(&ScanProgressEvent::done(
+                &run_id,
+                0,
+                elapsed_since(started_at),
+                Some(message.clone()),
+            ));
+            return Err(message);
+        }
+    };
+
+    observer.on_progress(&ScanProgressEvent::done(
+        &run_id,
+        discovered.len(),
+        elapsed_since(started_at),
+        error.clone(),
+    ));
+
+    match error {
+        Some(message) if discovered.is_empty() => Err(message),
+        _ => Ok(discovered),
+    }
+}
+
+/// One discovery run between `started` and `done`. Partial failures (a root
+/// that cannot be walked) are reported via the second tuple element while the
+/// healthy roots still deliver their repositories (research R9).
+async fn run_discovery(
+    config: &ConfigManager,
+    watcher: &WatcherState,
+    roots: &[String],
+    max_depth: usize,
+    run_id: &str,
+    observer: Arc<dyn ScanObserver>,
+) -> Result<(Vec<Repository>, Option<String>), String> {
+    let group_map = match config.group_ids_by_path() {
+        Ok(map) => map,
+        Err(error) => return Err(error),
+    };
     let limit = max_depth.max(1);
     let mut repo_paths = Vec::new();
+    let mut walk_errors: Vec<String> = Vec::new();
 
-    for path in paths.into_iter().filter(|path| !path.trim().is_empty()) {
-        let found = RepoScanner::scan_path_async(PathBuf::from(&path), limit).await;
+    for path in roots {
+        let (found, errors) =
+            RepoScanner::scan_path_async(PathBuf::from(path), limit, run_id, Arc::clone(&observer))
+                .await;
         repo_paths.extend(found);
+        walk_errors.extend(errors);
     }
 
     repo_paths.sort();
@@ -136,6 +262,8 @@ pub async fn discover_repositories(
 
     for repo_path in repo_paths {
         let semaphore = Arc::clone(&semaphore);
+        let observer = Arc::clone(&observer);
+        let run_id = run_id.to_string();
         let group_ids = group_map
             .get(&repo_path.to_string_lossy().to_string())
             .cloned()
@@ -143,21 +271,42 @@ pub async fn discover_repositories(
 
         tasks.push(tokio::spawn(async move {
             let _permit = semaphore.acquire_owned().await.ok();
-            RepoScanner::inspect_repository(&repo_path, group_ids).await
+            let repo = RepoScanner::inspect_repository(&repo_path, group_ids).await;
+            observer.on_progress(&ScanProgressEvent::inspected(
+                &run_id, &repo.path, repo.kind,
+            ));
+            repo
         }));
     }
 
     let mut discovered = Vec::with_capacity(tasks.len());
     for task in tasks {
-        if let Ok(repo) = task.await {
-            discovered.push(repo);
+        match task.await {
+            Ok(repo) => discovered.push(repo),
+            Err(error) => walk_errors.push(format!("inspection failed: {error}")),
         }
     }
     discovered.sort_by_key(|a| a.path.to_lowercase());
 
     watcher.update(watch_paths);
 
-    Ok(discovered)
+    let error = if walk_errors.is_empty() {
+        None
+    } else {
+        Some(walk_errors.join("; "))
+    };
+    Ok((discovered, error))
+}
+
+fn epoch_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or_default()
+}
+
+fn elapsed_since(started_at: u64) -> u64 {
+    epoch_ms().saturating_sub(started_at)
 }
 
 pub async fn refresh_repository(path: String, group_ids: Vec<String>) -> Repository {
@@ -304,6 +453,7 @@ pub async fn list_group_branches(repo_paths: Vec<String>) -> Result<Vec<BranchIn
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scanner::ScanProgressPhase;
 
     fn temp_manager() -> (tempfile::TempDir, ConfigManager) {
         let temp = tempfile::tempdir().unwrap();
@@ -343,5 +493,71 @@ mod tests {
         };
 
         assert!(save_onboarding_state(&manager, state).is_err());
+    }
+
+    #[tokio::test]
+    async fn discovery_emits_started_found_inspected_and_done() {
+        let (_temp, manager) = temp_manager();
+        let event_bus = crate::watcher::EventBus::new();
+        let watcher = WatcherState::new(event_bus);
+
+        let root = _temp.path().join("projects");
+        let repo = root.join("app");
+        std::fs::create_dir_all(repo.join(".git")).unwrap();
+
+        let observer = std::sync::Arc::new(crate::scanner::CollectingObserver::new());
+        let discovered = discover_repositories(
+            &manager,
+            &watcher,
+            vec![root.to_string_lossy().to_string()],
+            4,
+            observer.clone(),
+        )
+        .await
+        .unwrap();
+
+        let events = observer.events();
+        let phases: Vec<_> = events.iter().map(|event| event.phase).collect();
+        assert_eq!(phases.first(), Some(&ScanProgressPhase::Started));
+        assert_eq!(phases.last(), Some(&ScanProgressPhase::Done));
+        assert!(phases.contains(&ScanProgressPhase::Found));
+        assert!(phases.contains(&ScanProgressPhase::Inspected));
+
+        let started = &events[0];
+        assert_eq!(started.roots, vec![root.to_string_lossy().to_string()]);
+        assert!(started.started_at.is_some());
+
+        let done = events.last().unwrap();
+        assert_eq!(done.found_count, Some(discovered.len()));
+        assert!(done.error.is_none());
+        assert_eq!(started.run_id, done.run_id);
+    }
+
+    #[tokio::test]
+    async fn discovery_always_emits_done_including_on_failures() {
+        let (_temp, manager) = temp_manager();
+        let event_bus = crate::watcher::EventBus::new();
+        let watcher = WatcherState::new(event_bus);
+        let observer = std::sync::Arc::new(crate::scanner::CollectingObserver::new());
+
+        // SC-006: a root that vanished from disk must terminate the run with an
+        // error rather than leaving the frontend spinning.
+        let missing = _temp.path().join("gone");
+        let outcome = discover_repositories(
+            &manager,
+            &watcher,
+            vec![missing.to_string_lossy().to_string()],
+            4,
+            observer.clone(),
+        )
+        .await;
+
+        assert!(outcome.is_err());
+        let events = observer.events();
+        assert_eq!(events.first().unwrap().phase, ScanProgressPhase::Started);
+        let done = events.last().unwrap();
+        assert_eq!(done.phase, ScanProgressPhase::Done);
+        assert!(done.error.is_some());
+        assert_eq!(done.found_count, Some(0));
     }
 }

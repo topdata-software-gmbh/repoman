@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import {
+  CheckCircle2,
   Eye,
   EyeOff,
   FolderGit2,
@@ -50,6 +52,26 @@ async function removeScanPath(id: string, path: string): Promise<void> {
     return;
   }
   await store.removeScanPath(id);
+}
+
+// FR-003/FR-015: while scanning (or for the ~10 s summary window) the chip is
+// a button into the live activity modal; otherwise it starts a refresh.
+const scanChipActive = computed(() => store.isScanning || store.scanActivity.summaryVisible);
+
+function onScanChipClick(): void {
+  if (scanChipActive.value) {
+    store.openScanModal();
+    return;
+  }
+  void store.scanRepositories();
+}
+
+function scanChipLabel(): string {
+  if (store.isScanning) return t('sidebar.looking');
+  if (store.scanActivity.summaryVisible) {
+    return t('scan.activity.chipDone', { count: store.scanActivityCount });
+  }
+  return t('sidebar.lookAgain');
 }
 </script>
 
@@ -221,14 +243,18 @@ async function removeScanPath(id: string, path: string): Promise<void> {
           variant="ghost"
           size="sm"
           class="flex-1 justify-start text-[11px] text-fg-muted"
-          :disabled="store.isScanning"
-          @click="store.scanRepositories"
+          :title="scanChipActive ? t('scan.activity.tooltip') : undefined"
+          @click="onScanChipClick"
         >
           <template #icon-left>
             <TdSpinner v-if="store.isScanning" size="sm" />
+            <CheckCircle2
+              v-else-if="store.scanActivity.summaryVisible"
+              class="h-3.5 w-3.5 text-success-fg"
+            />
             <RefreshCw v-else class="h-3.5 w-3.5" />
           </template>
-          <span>{{ store.isScanning ? t('sidebar.looking') : t('sidebar.lookAgain') }}</span>
+          <span>{{ scanChipLabel() }}</span>
         </TdButton>
 
         <TdLanguageSwitcher

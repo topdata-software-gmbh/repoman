@@ -1,50 +1,104 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report (scratch — remove before commit)
+- Version change: (none, unfilled scaffold) → 1.0.0  [MAJOR: initial ratification]
+- Modified principles: none (all new)
+- Added sections: Core Principles I–V; "Security & Configuration Constraints";
+  "Development Workflow & Quality Gates"; Governance
+- Removed sections: none (source contained only template placeholders)
+- Sources consulted: README.md, _ai/conventions.md (ruleman-generated),
+  _ai/technical_decisions ADR 261028-1, 261030-1..4, 261031-1, 261101-1
+- Follow-up TODOs: none
+-->
+
+# RepoMan Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Spec-Driven Change (NON-NEGOTIABLE)
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Every feature or behavioral change MUST pass through the Spec Kit workflow in
+order: `specs/NNN-<short-name>/spec.md` → plan → tasks → implementation. The
+spec MUST stay technology-agnostic; framework, library, and protocol names
+belong in the plan. Code written before an accepted spec MUST be discarded or
+back-ported into a spec. Rationale: repoman's two frontends and its event bus
+make undeclared coupling expensive; the spec chain is the review artifact that
+catches it early.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. One Core, Two Frontends
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+The Rust service layer (`src-tauri/src/service.rs`) is the single source of
+functional behavior. Tauri commands and the axum HTTP/SSE server MUST remain
+thin transports that delegate to it — neither may implement business logic of
+its own. Vue components MUST consume declared commands and typed events only.
+All cross-boundary payloads MUST use the typed `AppEvent` bus contract (per
+ADR 261028-1 and ADR 261030-4); ad-hoc JSON or direct frontend filesystem
+access is forbidden. Rationale: desktop and web must stay behavior-identical,
+and the ADRs are the tested path to that.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### III. Git Only Through the System CLI
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+All repository operations MUST be executed through the system `git` binary via
+`GitRunner`. Vendoring a Git library (libgit2, git2-rs, or equivalents) is
+prohibited. Rationale: this preserves the user's SSH agent, credential
+helpers, and GPG signing exactly as their shell would, and keeps repoman's
+actions indistinguishable from hand-run commands.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### IV. Beginner-Friendly by Default
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+The product voice is plain language, not Git jargon. Every user-facing string
+MUST live in the app-owned translation dictionaries and be complete for both
+German and English before merge (per ADR 261031-1); no hard-coded literals in
+components. Every error surfaced to a user MUST be translated into the next
+action the user can take, not just a failure notice. Rationale: the target
+user is a shop operator, not a Git power user.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### V. Bounded, Non-Destructive Action
+
+Concurrent operations MUST be bounded (semaphore) and MUST never hold a lock
+across an await. Operations that only observe (scan, diff collection, AI
+draft generation) MUST NOT modify repository state; anything that writes MUST
+require explicit user confirmation in the UI. Configuration writes MUST stay
+atomic via temp-file rename so a crash cannot truncate state. Rationale:
+repoman touches the user's real work; a bug must not be able to lose changes.
+
+## Security & Configuration Constraints
+
+- Secrets and credentials MUST NOT be stored in `AppConfig`, logs, UI output,
+  or the repository. Credentials available to features MUST be referenced by
+  environment-variable name and read at request time.
+- Machine configuration lives in the user's config directory and follows the
+  existing atomic-write pattern; breaking config-format changes require a
+  migration or documented fallback.
+- Tool and request budgets (lookup counts, payload sizes, retries) MUST be
+  bounded with explicit defaults; unbounded recursion into the user's
+  filesystem or an external API is prohibited.
+- Language- and framework-level rules (Rust error handling, unsafe policy,
+  clippy/fmt gates, Vue/TS/UI conventions) are governed by
+  `_ai/conventions.md`, generated by ruleman; it is authoritative for tech
+  details and MUST be edited upstream, never by hand.
+
+## Development Workflow & Quality Gates
+
+- A tasks item is done only when `cargo fmt --check`, `clippy -D warnings`,
+  `cargo test --all-features`, frontend typecheck, and vitest pass for the
+  touched surface; CI mirrors these gates.
+- New behavior ships with tests covering error paths and edge cases, not only
+  the happy path (per conventions and existing practice in `src/lib/__tests__`).
+- Decisions that constrain work beyond a single feature MUST be recorded as an
+  ADR in `_ai/technical_decisions/` before implementation starts; plans link
+  to them rather than restating them.
+- `CHANGELOG.md` is updated in the same change that alters user-visible
+  behavior.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes ad-hoc practice. Amendments: propose the changed
+text and its rationale in review; on acceptance, apply this semver bump —
+MAJOR for removing or redefining a principle incompatibly, MINOR for adding a
+principle/section or materially expanding guidance, PATCH for clarifications
+and wording only. Update `LAST AMENDED` on every accepted change. Compliance
+is checked during spec/plan review and code review; deviations MUST be
+justified in the plan or PR, and justified complexity that recurs becomes an
+amendment or an ADR, not folklore.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-11-01 | **Last Amended**: 2026-11-01

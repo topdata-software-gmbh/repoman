@@ -3,6 +3,7 @@ mod commands {
     pub mod git_commands;
 }
 mod config;
+mod commitgen;
 mod events;
 mod git_log;
 mod git_runner;
@@ -102,6 +103,12 @@ fn run_desktop(cli: Cli) {
                         crate::events::AppEvent::GitStep(step) => {
                             let _ = handle.emit("git:step", step);
                         }
+                        crate::events::AppEvent::ScanProgress(progress) => {
+                            let _ = handle.emit("scan:progress", progress);
+                        }
+                        crate::events::AppEvent::CommitGen(commit_gen) => {
+                            let _ = handle.emit("commitgen:repo", commit_gen);
+                        }
                     }
                 }
             });
@@ -120,7 +127,8 @@ fn run_desktop(cli: Cli) {
             commit_repo_changes,
             execute_group_action,
             switch_group_branch,
-            list_group_branches
+            list_group_branches,
+            generate_commit_messages
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

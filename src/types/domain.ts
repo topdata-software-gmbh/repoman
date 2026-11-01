@@ -70,6 +70,7 @@ export interface AppConfig {
   scanPaths: ScanPath[];
   groups: RepoGroup[];
   onboarding: OnboardingState;
+  ai?: AiSettings | null;
 }
 
 export interface OperationResult {
@@ -133,4 +134,90 @@ export interface GitRun {
   durationMs: number;
   rows: GitLogRow[];
   finishedAt: string;
+}
+
+export type ScanProgressPhase = 'started' | 'found' | 'tick' | 'inspected' | 'done';
+
+/** Live scan progress payload (contracts/scan-progress-event.md §C4). */
+export interface ScanProgressEvent {
+  phase: ScanProgressPhase;
+  runId: string;
+  roots?: string[];
+  startedAt?: number;
+  root?: string;
+  path?: string;
+  name?: string;
+  kind?: RepoKind;
+  currentDir?: string;
+  foundCount?: number;
+  elapsedMs?: number;
+  error?: string | null;
+}
+
+export interface ScanActivityEntry {
+  name: string;
+  root: string;
+  kind: RepoKind | null;
+  inspected: boolean;
+}
+
+export interface ScanActivityFinished {
+  count: number;
+  elapsedMs: number;
+  error?: string | null;
+}
+
+export interface ScanActivityState {
+  runId: string;
+  roots: string[];
+  running: boolean;
+  currentDir: string | null;
+  currentRoot: string | null;
+  startedAt: number;
+  entries: Map<string, ScanActivityEntry>;
+  finished: ScanActivityFinished | null;
+  modalOpen: boolean;
+  summaryVisible: boolean;
+  elapsedMs: number;
+}
+
+export type CommitGenPhase = 'started' | 'done' | 'error';
+
+/** One AI-drafted Conventional Commit message (contract C4 §payload). */
+export interface CommitDraft {
+  type: string;
+  scope: string | null;
+  subject: string;
+  body: string | null;
+  rendered: string;
+}
+
+/** Live commit-message generation event (contracts/commitgen-events.md §C4). */
+export interface CommitGenEvent {
+  phase: CommitGenPhase;
+  runId: string;
+  path: string;
+  draft?: CommitDraft;
+  error?: string | null;
+}
+
+export type CommitGenRowStatus = 'idle' | 'generating' | 'ready' | 'error';
+
+/** One dialog row while a generation run is live (data-model §CommitGenRow). */
+export interface RepoDraftRow {
+  path: string;
+  name: string;
+  status: CommitGenRowStatus;
+  message: string;
+  dirty: boolean;
+  error: string | null;
+}
+
+/** Non-secret AI settings as exposed by the backend (data-model §AiSettings). */
+export interface AiSettings {
+  baseUrl: string;
+  model: string;
+  apiKeyEnv: string;
+  maxToolCalls: number;
+  diffBudgetChars: number;
 }

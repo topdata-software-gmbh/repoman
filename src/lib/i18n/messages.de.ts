@@ -243,6 +243,19 @@ export const de: Record<MessageKey, string> = {
   'scan.cancel': 'Abbrechen',
   'scan.find': 'Meine Projekte finden',
 
+  'scan.activity.title': 'Scan-Aktivität',
+  'scan.activity.progress': 'Prüfe {dir}… · {count} Projekte gefunden',
+  'scan.activity.found': '{count} Projekte gefunden',
+  'scan.activity.elapsed': '{time} vergangen',
+  'scan.activity.kindPending': '…',
+  'scan.activity.andMore': '…und {count} mehr',
+  'scan.activity.tooltip': 'Scan-Aktivität anzeigen',
+  'scan.activity.summary': 'Scan fertig — {count} Projekte in {elapsed}',
+  'scan.activity.failed': 'Scan fehlgeschlagen',
+  'scan.activity.chipDone': 'Fertig · {count} Projekte',
+  'scan.activity.empty': 'Noch keine Projekte gefunden',
+  'scan.activity.close': 'Schließen',
+
   'save.title': 'In Git speichern',
   'save.description':
     'Erstelle einen Speicherpunkt deiner Arbeit. Nichts wird gelöscht oder verschoben.',
@@ -266,6 +279,32 @@ export const de: Record<MessageKey, string> = {
   'save.status.renamed': 'Umbenannt',
   'save.status.conflict': 'Konflikt',
   'save.status.changed': 'Geändert',
+  'save.ai.generate': '✨ Mit KI vorschlagen',
+  'save.ai.generating': 'Vorschlag wird erstellt…',
+  'save.ai.ready': 'Vorschlag fertig',
+  'save.ai.draftLabel': 'Vorschläge für deine Projekte',
+  'save.ai.draftHint':
+    'Prüfe jeden Vorschlag und passe ihn an. Gespeichert wird erst mit „In Git speichern“.',
+  'save.ai.retry': 'Erneut vorschlagen',
+  'save.ai.notConfigured': 'KI ist noch nicht eingerichtet. Du kannst weiterhin selbst schreiben.',
+  'save.ai.missingKey':
+    'Der Schlüssel fehlt: Setze die Umgebungsvariable {envVar} und starte RepoMan neu.',
+  'save.ai.badConfig':
+    'Die KI-Einstellungen sind unvollständig. Prüfe Adresse und Modell in der Konfiguration.',
+  'save.ai.errors.nothingToSummarize': 'In diesem Projekt gibt es nichts zu speichern.',
+  'save.ai.errors.conflicts': 'Löse zuerst die Konflikte in diesem Projekt.',
+  'save.ai.errors.provider':
+    'Der KI-Dienst war nicht erreichbar. Prüfe die Verbindung und versuche es erneut.',
+  'save.ai.errors.empty': 'Die KI hat keinen Vorschlag geliefert. Versuche es erneut.',
+  'save.ai.errors.malformed': 'Der Vorschlag war unbrauchbar. Versuche es erneut.',
+  'save.ai.errors.unreadable': 'Die Änderungen konnten nicht gelesen werden.',
+  'save.ai.messageLabel': 'Nachricht für {name}',
+  'save.ai.messageHint': 'Vorschlag im Conventional-Commit-Stil, frei bearbeitbar.',
+  'save.ai.manualHint': 'Ohne Vorschlag kannst du direkt eine eigene Nachricht schreiben.',
+  'save.ai.status.idle': 'Bereit',
+  'save.ai.status.generating': 'Wird erstellt…',
+  'save.ai.status.ready': 'Fertig',
+  'save.ai.status.error': 'Fehlgeschlagen',
 
   'gitLog.region': 'Was Git gemacht hat',
   'gitLog.title': 'Was Git gemacht hat',
@@ -302,6 +341,7 @@ export const de: Record<MessageKey, string> = {
   'onboarding.find.groupingSingle': 'Eine Gruppe für alles',
   'onboarding.find.scanning':
     'Projekte werden gesucht. Große Ordner können eine Minute dauern…',
+  'onboarding.find.progress': 'Prüfe {dir}… · {count} Projekte gefunden',
   'onboarding.find.submit': 'Meine Projekte finden',
   'onboarding.choose.title': 'Wähle die Projekte aus, mit denen du arbeiten willst',
   'onboarding.choose.text':
@@ -388,6 +428,8 @@ export const de: Record<MessageKey, string> = {
   'toast.removeScanPathFailed': 'Projektordner konnte nicht entfernt werden',
   'toast.saveSetupFailed': 'Einrichtungsfortschritt konnte nicht gespeichert werden',
   'toast.finishSetupFailed': 'Einrichtung konnte nicht abgeschlossen werden',
+  'toast.refreshDone': '{name} aktualisiert',
+  'toast.refreshFailed': '{name} konnte nicht aktualisiert werden',
 
   'insight.missing.one': '1 Projekt wurde nicht gefunden',
   'insight.missing.other': '{count} Projekte wurden nicht gefunden',

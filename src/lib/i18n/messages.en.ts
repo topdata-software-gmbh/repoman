@@ -242,6 +242,20 @@ export const en = {
   'scan.cancel': 'Cancel',
   'scan.find': 'Find my projects',
 
+  // Live scan activity (progress stream)
+  'scan.activity.title': 'Scan activity',
+  'scan.activity.progress': 'Checking {dir}… · {count} projects found',
+  'scan.activity.found': '{count} projects found',
+  'scan.activity.elapsed': '{time} elapsed',
+  'scan.activity.kindPending': '…',
+  'scan.activity.andMore': '…and {count} more',
+  'scan.activity.tooltip': 'Show scan activity',
+  'scan.activity.summary': 'Scan complete — {count} projects in {elapsed}',
+  'scan.activity.failed': 'Scan failed',
+  'scan.activity.chipDone': 'Done · {count} projects',
+  'scan.activity.empty': 'No projects found yet',
+  'scan.activity.close': 'Close',
+
   // Save changes modal
   'save.title': 'Save to Git',
   'save.description': 'Create a checkpoint of your work. Nothing is deleted or moved.',
@@ -265,6 +279,32 @@ export const en = {
   'save.status.renamed': 'Renamed',
   'save.status.conflict': 'Conflict',
   'save.status.changed': 'Changed',
+  'save.ai.generate': '✨ Suggest with AI',
+  'save.ai.generating': 'Drafting…',
+  'save.ai.ready': 'Draft ready',
+  'save.ai.draftLabel': 'Drafts for your projects',
+  'save.ai.draftHint':
+    'Review and adjust each draft. Nothing is saved until you click “Save to Git”.',
+  'save.ai.retry': 'Suggest again',
+  'save.ai.notConfigured': 'AI is not set up yet. You can still write your own message.',
+  'save.ai.missingKey':
+    'The key is missing: set the {envVar} environment variable and restart RepoMan.',
+  'save.ai.badConfig':
+    'The AI settings are incomplete. Check the address and model in the configuration.',
+  'save.ai.errors.nothingToSummarize': 'There is nothing to save in this project.',
+  'save.ai.errors.conflicts': 'Resolve the conflicts in this project first.',
+  'save.ai.errors.provider':
+    'The AI service was unreachable. Check the connection and try again.',
+  'save.ai.errors.empty': 'The AI returned no suggestion. Try again.',
+  'save.ai.errors.malformed': 'The suggestion was unusable. Try again.',
+  'save.ai.errors.unreadable': 'The changes could not be read.',
+  'save.ai.messageLabel': 'Message for {name}',
+  'save.ai.messageHint': 'Conventional Commit suggestion, freely editable.',
+  'save.ai.manualHint': 'You can also write your own message without a suggestion.',
+  'save.ai.status.idle': 'Ready',
+  'save.ai.status.generating': 'Drafting…',
+  'save.ai.status.ready': 'Ready',
+  'save.ai.status.error': 'Failed',
 
   // Git log drawer (chrome only; backend transcript stays English)
   'gitLog.region': 'What Git did',
@@ -302,6 +342,7 @@ export const en = {
   'onboarding.find.groupingTopLevel': 'By top-level folder',
   'onboarding.find.groupingSingle': 'One group for everything',
   'onboarding.find.scanning': 'Looking for projects. Large folders can take a minute…',
+  'onboarding.find.progress': 'Checking {dir}… · {count} projects found',
   'onboarding.find.submit': 'Find my projects',
   'onboarding.choose.title': 'Choose the projects to work with',
   'onboarding.choose.text':
@@ -387,6 +428,8 @@ export const en = {
   'toast.removeScanPathFailed': 'Could not remove project folder',
   'toast.saveSetupFailed': 'Could not save setup progress',
   'toast.finishSetupFailed': 'Could not finish setup',
+  'toast.refreshDone': '{name} refreshed',
+  'toast.refreshFailed': 'Could not refresh {name}',
 
   // Store insights
   'insight.missing.one': '1 project cannot be found',

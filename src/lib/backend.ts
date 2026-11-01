@@ -1,6 +1,7 @@
 import type {
   AppConfig,
   BranchInfo,
+  CommitGenEvent,
   FileChange,
   GitStepEvent,
   OnboardingState,
@@ -8,6 +9,7 @@ import type {
   RepoGroup,
   Repository,
   ScanPath,
+  ScanProgressEvent,
 } from '../types/domain';
 
 export const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
@@ -205,6 +207,17 @@ export const backend = {
     );
   },
 
+  generateCommitMessages(repoPaths: string[], runId?: string): Promise<string> {
+    const payload = runId ? { repoPaths, runId } : { repoPaths };
+    return request<{ runId: string }>(
+      'generate_commit_messages',
+      payload,
+      'POST',
+      '/api/repositories/generate-commit-messages',
+      payload,
+    ).then((response) => response.runId);
+  },
+
   listGroupBranches(repoPaths: string[]): Promise<BranchInfo[]> {
     return request<BranchInfo[]>(
       'list_group_branches',
@@ -219,6 +232,8 @@ export const backend = {
 export interface AppEventHandlers {
   onRepoChanged?: (path: string) => void;
   onGitStep?: (step: GitStepEvent) => void;
+  onScanProgress?: (event: ScanProgressEvent) => void;
+  onCommitGen?: (event: CommitGenEvent) => void;
 }
 
 export async function subscribeToEvents(handlers: AppEventHandlers): Promise<() => void> {
@@ -227,6 +242,10 @@ export async function subscribeToEvents(handlers: AppEventHandlers): Promise<() 
     const unlisten = await Promise.all([
       listen<string>('repo:fs-changed', (event) => handlers.onRepoChanged?.(event.payload)),
       listen<GitStepEvent>('git:step', (event) => handlers.onGitStep?.(event.payload)),
+      listen<ScanProgressEvent>('scan:progress', (event) =>
+        handlers.onScanProgress?.(event.payload),
+      ),
+      listen<CommitGenEvent>('commitgen:repo', (event) => handlers.onCommitGen?.(event.payload)),
     ]);
     return () => unlisten.forEach((stop) => stop());
   }
@@ -246,8 +265,28 @@ export async function subscribeToEvents(handlers: AppEventHandlers): Promise<() 
       // A malformed frame must never break the live view.
     }
   };
+  const scanHandler = (event: Event) => {
+    try {
+      handlers.onScanProgress?.(
+        JSON.parse((event as MessageEvent<string>).data) as ScanProgressEvent,
+      );
+    } catch {
+      // A malformed frame must never break the live view.
+    }
+  };
+  const commitGenHandler = (event: Event) => {
+    try {
+      handlers.onCommitGen?.(
+        JSON.parse((event as MessageEvent<string>).data) as CommitGenEvent,
+      );
+    } catch {
+      // A malformed frame must never break the live view.
+    }
+  };
   source.addEventListener('repo-fs-changed', repoHandler as EventListener);
   source.addEventListener('git-step', stepHandler as EventListener);
+  source.addEventListener('scan-progress', scanHandler as EventListener);
+  source.addEventListener('commitgen-repo', commitGenHandler as EventListener);
 
   return () => source.close();
 }

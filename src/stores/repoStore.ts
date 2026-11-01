@@ -17,16 +17,21 @@ import {
   type AllReposFilters,
   type RepoStatusFilter,
 } from '../lib/repoFilters';
+import { branchLabel, statusBadges } from '../lib/repoStatus';
 import type {
   AppConfig,
   BranchInfo,
+  CommitGenEvent,
   GitStepEvent,
   GroupingStyle,
   OnboardingState,
   OperationResult,
+  RepoDraftRow,
   RepoGroup,
   Repository,
+  ScanActivityState,
   ScanPath,
+  ScanProgressEvent,
 } from '../types/domain';
 
 export type ToastKind = 'success' | 'error' | 'info';
@@ -37,6 +42,10 @@ export interface Toast {
   title: string;
   message?: string;
 }
+
+export type RefreshResult =
+  | { ok: true; repo: Repository }
+  | { ok: false; error: string };
 
 export type InsightAction = 'save' | 'pull' | 'push';
 
@@ -53,6 +62,24 @@ let branchRequestId = 0;
 
 const GIT_STEP_LIMIT = 200;
 const REPOSITORY_CACHE_KEY = 'repoman.repositories.v1';
+const SCAN_CHIP_LINGER_MS = 10_000;
+const SCAN_ELAPSED_TICK_MS = 1_000;
+
+function emptyScanActivity(): ScanActivityState {
+  return {
+    runId: '',
+    roots: [],
+    running: false,
+    currentDir: null,
+    currentRoot: null,
+    startedAt: 0,
+    entries: new Map(),
+    finished: null,
+    modalOpen: false,
+    summaryVisible: false,
+    elapsedMs: 0,
+  };
+}
 
 function readRepositoryCache(): Repository[] {
   try {
@@ -128,6 +155,151 @@ export const useRepoStore = defineStore('repo', () => {
   const allReposFilters = ref<AllReposFilters>(emptyAllReposFilters());
   const gitSteps = ref<GitStepEvent[]>([]);
   const gitLogOpen = ref(false);
+
+  // Session-only live scan activity (data-model E1); never persisted.
+  const scanActivity = ref<ScanActivityState>(emptyScanActivity());
+  let scanElapsedTimer: ReturnType<typeof setInterval> | null = null;
+  let scanChipTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const scanActivityCount = computed(() => {
+    const state = scanActivity.value;
+    return Math.max(state.entries.size, state.finished?.count ?? 0);
+  });
+
+  function stopScanElapsedTicker(): void {
+    if (scanElapsedTimer !== null) {
+      clearInterval(scanElapsedTimer);
+      scanElapsedTimer = null;
+    }
+  }
+
+  function startScanElapsedTicker(startedAt: number): void {
+    stopScanElapsedTicker();
+    scanActivity.value.elapsedMs = Math.max(0, Date.now() - startedAt);
+    scanElapsedTimer = setInterval(() => {
+      const state = scanActivity.value;
+      if (!state.running) return;
+      state.elapsedMs = Math.max(0, Date.now() - state.startedAt);
+    }, SCAN_ELAPSED_TICK_MS);
+  }
+
+  function scheduleScanChipHide(): void {
+    if (scanChipTimer !== null) clearTimeout(scanChipTimer);
+    scanChipTimer = setTimeout(() => {
+      scanActivity.value.summaryVisible = false;
+      scanChipTimer = null;
+    }, SCAN_CHIP_LINGER_MS);
+  }
+
+  function lastPathSegment(path: string): string {
+    const parts = path.split(/[\\/]/).filter(Boolean);
+    return parts[parts.length - 1] ?? path;
+  }
+
+  /**
+   * Reducer for one `scan:progress` event (FR-001…FR-009, FR-015):
+   * `started` replaces the whole slice; foreign run ids are ignored;
+   * `found` inserts once; `inspected` updates the entry in place;
+   * `done` finalizes and lingers the chip for ~10 s.
+   */
+  function applyScanProgress(event: ScanProgressEvent): void {
+    if (event.phase === 'started') {
+      if (scanChipTimer !== null) {
+        clearTimeout(scanChipTimer);
+        scanChipTimer = null;
+      }
+      const startedAt = event.startedAt ?? Date.now();
+      scanActivity.value = {
+        runId: event.runId,
+        roots: event.roots ?? [],
+        running: true,
+        currentDir: null,
+        currentRoot: null,
+        startedAt,
+        entries: new Map(),
+        finished: null,
+        modalOpen: scanActivity.value.modalOpen,
+        summaryVisible: false,
+        elapsedMs: 0,
+      };
+      startScanElapsedTicker(startedAt);
+      return;
+    }
+
+    const state = scanActivity.value;
+    if (event.runId !== state.runId) return;
+    if (state.finished || !state.running) return;
+
+    switch (event.phase) {
+      case 'found': {
+        if (!event.path || state.entries.has(event.path)) break;
+        if (event.root) state.currentRoot = event.root;
+        state.entries.set(event.path, {
+          name: event.name ?? lastPathSegment(event.path),
+          root: event.root ?? '',
+          kind: null,
+          inspected: false,
+        });
+        break;
+      }
+      case 'tick': {
+        if (event.currentDir) state.currentDir = event.currentDir;
+        if (event.root) state.currentRoot = event.root;
+        break;
+      }
+      case 'inspected': {
+        if (!event.path || !event.kind) break;
+        const entry = state.entries.get(event.path);
+        if (entry) {
+          entry.kind = event.kind;
+          entry.inspected = true;
+        }
+        break;
+      }
+      case 'done': {
+        state.running = false;
+        state.finished = {
+          count: event.foundCount ?? state.entries.size,
+          elapsedMs: event.elapsedMs ?? state.elapsedMs,
+          error: event.error ?? null,
+        };
+        stopScanElapsedTicker();
+        state.elapsedMs = state.finished.elapsedMs;
+        state.summaryVisible = true;
+        scheduleScanChipHide();
+        break;
+      }
+    }
+  }
+
+  /** Promise rejection path (FR-008): terminate a running scan even without `done`. */
+  function failScanActivity(message: string): void {
+    const state = scanActivity.value;
+    if (state.finished || !state.runId) return;
+    state.running = false;
+    state.finished = {
+      count: state.entries.size,
+      elapsedMs: Math.max(0, Date.now() - (state.startedAt || Date.now())),
+      error: message,
+    };
+    stopScanElapsedTicker();
+    state.elapsedMs = state.finished.elapsedMs;
+    state.summaryVisible = true;
+    scheduleScanChipHide();
+  }
+
+  function openScanModal(): void {
+    scanActivity.value.modalOpen = true;
+    scanActivity.value.summaryVisible = false;
+    if (scanChipTimer !== null) {
+      clearTimeout(scanChipTimer);
+      scanChipTimer = null;
+    }
+  }
+
+  function closeScanModal(): void {
+    scanActivity.value.modalOpen = false;
+  }
 
   const currentGroup = computed(() => {
     if (selectedGroupId.value === 'all') return null;
@@ -435,13 +607,14 @@ export const useRepoStore = defineStore('repo', () => {
       writeRepositoryCache(found);
       await loadGroupBranches();
     } catch (error) {
+      failScanActivity(String(error));
       showToast('error', t('toast.scanFailed'), String(error));
     } finally {
       isScanning.value = false;
     }
   }
 
-  async function refreshSingleRepo(path: string): Promise<void> {
+  async function refreshSingleRepo(path: string): Promise<RefreshResult> {
     const current = repositories.value.find((repo) => repo.path === path);
     const groupIds = current?.groupIds ?? [];
 
@@ -454,9 +627,36 @@ export const useRepoStore = defineStore('repo', () => {
         repositories.value.push(updated);
         repositories.value.sort((a, b) => a.path.localeCompare(b.path));
       }
-    } catch {
+
+      if (!updated.isAccessible) {
+        return { ok: false, error: t('status.folderNotFound') };
+      }
+      return { ok: true, repo: updated };
+    } catch (error) {
       // A repository can disappear between a filesystem event and the refresh.
+      return { ok: false, error: String(error) };
     }
+  }
+
+  async function refreshRepoWithToast(path: string): Promise<void> {
+    const result = await refreshSingleRepo(path);
+
+    if (result.ok) {
+      const { repo } = result;
+      showToast(
+        'success',
+        t('toast.refreshDone', { name: repo.name || repoLabel(path) }),
+        [branchLabel(repo), ...statusBadges(repo).map((badge) => badge.label)].join(' · '),
+      );
+      return;
+    }
+
+    const name = repositories.value.find((repo) => repo.path === path)?.name || repoLabel(path);
+    showToast(
+      'error',
+      t('toast.refreshFailed', { name }),
+      result.error.trim().split('\n')[0] || t('common.unknownError'),
+    );
   }
 
   async function loadGroupBranches(): Promise<void> {
@@ -518,14 +718,14 @@ export const useRepoStore = defineStore('repo', () => {
   }
 
   async function commitRepositories(
-    paths: string[],
-    message: string,
+    messages: Record<string, string>,
   ): Promise<OperationResult[]> {
     const results: OperationResult[] = [];
+    const paths = Object.keys(messages);
 
     for (const path of paths) {
       try {
-        results.push(await backend.commitRepoChanges(path, message));
+        results.push(await backend.commitRepoChanges(path, messages[path]));
       } catch (error) {
         results.push({
           repoPath: path,
@@ -539,6 +739,156 @@ export const useRepoStore = defineStore('repo', () => {
     await Promise.all(paths.map((path) => refreshSingleRepo(path)));
     await loadGroupBranches();
     return results;
+  }
+
+  // --- AI commit messages (specs/002-ai-commit-messages, data-model E4) ---
+
+  const commitGenActiveRunId = ref<string | null>(null);
+  const commitGenRetryRunIds = new Set<string>();
+  const commitGenRows = ref<Map<string, RepoDraftRow>>(new Map());
+  const commitGenBuffered = ref<CommitGenEvent[]>([]);
+
+  const commitGenRowsList = computed(() => [...commitGenRows.value.values()]);
+
+  const commitGenGenerating = computed(() =>
+    commitGenRowsList.value.some((row) => row.status === 'generating'),
+  );
+
+  const commitGenCanCommit = computed(() => {
+    if (commitGenRowsList.value.length === 0) return false;
+    return commitGenRowsList.value.every(
+      (row) => row.status !== 'generating' && row.message.trim().length > 0,
+    );
+  });
+
+  /** Session-only view of the active run; discarded when the dialog closes. */
+  const commitgen = computed(() => ({
+    activeRunId: commitGenActiveRunId.value,
+    rows: commitGenRows.value,
+    list: commitGenRowsList.value,
+    generating: commitGenGenerating.value,
+    canCommit: commitGenCanCommit.value,
+    configured: Boolean(config.value.ai),
+  }));
+
+  function repoNameFor(path: string): string {
+    const repo = repositories.value.find((entry) => entry.path === path);
+    return repo?.name ?? path.split(/[\\/]/).pop() ?? path;
+  }
+
+  /** Seeds one editable row per selected repo (manual commits need no AI run). */
+  function ensureCommitGenRows(paths: string[]): void {
+    const next = new Map<string, RepoDraftRow>();
+    for (const path of paths) {
+      next.set(
+        path,
+        commitGenRows.value.get(path) ?? {
+          path,
+          name: repoNameFor(path),
+          status: 'idle',
+          message: '',
+          dirty: false,
+          error: null,
+        },
+      );
+    }
+    commitGenRows.value = next;
+  }
+
+  function setCommitGenMessage(path: string, message: string): void {
+    const row = commitGenRows.value.get(path);
+    if (!row) return;
+    row.message = message;
+    row.dirty = true;
+  }
+
+  function isCurrentCommitGenRun(runId: string): boolean {
+    return runId === commitGenActiveRunId.value || commitGenRetryRunIds.has(runId);
+  }
+
+  function applyCommitGenEvent(event: CommitGenEvent): void {
+    const row = commitGenRows.value.get(event.path);
+    if (!row) return;
+
+    if (event.phase === 'started') {
+      row.status = 'generating';
+      row.dirty = false;
+      row.error = null;
+      return;
+    }
+
+    if (event.phase === 'done') {
+      row.status = 'ready';
+      row.error = null;
+      // User edits win over a late draft (US1-AC3).
+      if (!row.dirty && event.draft) {
+        row.message = event.draft.rendered;
+      }
+      return;
+    }
+
+    row.status = 'error';
+    row.error = event.error ?? 'unknown error';
+  }
+
+  /** Applies queued events once their runId is known (events can beat the ACK). */
+  function replayCommitGenEvents(): void {
+    if (commitGenActiveRunId.value === null) return;
+    const queued = commitGenBuffered.value;
+    commitGenBuffered.value = [];
+    for (const event of queued) {
+      if (isCurrentCommitGenRun(event.runId)) applyCommitGenEvent(event);
+    }
+  }
+
+  function handleCommitGenEvent(event: CommitGenEvent): void {
+    if (commitGenActiveRunId.value === null) {
+      if (commitGenRows.value.has(event.path) && commitGenBuffered.value.length < 100) {
+        commitGenBuffered.value.push(event);
+      }
+      return;
+    }
+    if (!isCurrentCommitGenRun(event.runId)) return;
+    applyCommitGenEvent(event);
+  }
+
+  async function startRun(paths: string[]): Promise<void> {
+    ensureCommitGenRows(paths);
+    commitGenBuffered.value = [];
+    const runId = await backend.generateCommitMessages(paths);
+    commitGenActiveRunId.value = runId;
+    commitGenRetryRunIds.clear();
+    replayCommitGenEvents();
+  }
+
+  async function retryRepo(path: string): Promise<void> {
+    const row = commitGenRows.value.get(path);
+    if (!row) return;
+    row.status = 'generating';
+    row.error = null;
+    try {
+      // Reuse the active run so the retry events land on the same rows
+      // (contract C2/C3: the request carries `runId`).
+      const runId = await backend.generateCommitMessages(
+        [path],
+        commitGenActiveRunId.value ?? undefined,
+      );
+      if (commitGenActiveRunId.value === null) {
+        commitGenActiveRunId.value = runId;
+      }
+      commitGenRetryRunIds.add(runId);
+      replayCommitGenEvents();
+    } catch (error) {
+      row.status = 'error';
+      row.error = String(error);
+    }
+  }
+
+  function resetCommitGen(): void {
+    commitGenRows.value = new Map();
+    commitGenActiveRunId.value = null;
+    commitGenRetryRunIds.clear();
+    commitGenBuffered.value = [];
   }
 
   async function switchGroupBranch(branch: string, autoStash = true): Promise<void> {
@@ -844,6 +1194,7 @@ export const useRepoStore = defineStore('repo', () => {
   function closeSaveChanges(): void {
     saveModalOpen.value = false;
     saveModalPaths.value = null;
+    resetCommitGen();
   }
 
   function openHelp(): void {
@@ -905,14 +1256,25 @@ export const useRepoStore = defineStore('repo', () => {
     editingGroup,
     gitSteps,
     gitLogOpen,
+    scanActivity,
+    scanActivityCount,
     initialize,
     loadConfig,
     scanRepositories,
     refreshSingleRepo,
+    refreshRepoWithToast,
     loadGroupBranches,
     executeGroupAction,
     runRepoAction,
     commitRepositories,
+    commitgen,
+    commitGenRowsList,
+    ensureCommitGenRows,
+    setCommitGenMessage,
+    handleCommitGenEvent,
+    startRun,
+    retryRepo,
+    resetCommitGen,
     switchGroupBranch,
     saveGroup,
     deleteGroup,
@@ -947,5 +1309,9 @@ export const useRepoStore = defineStore('repo', () => {
     recordGitStep,
     openGitLog,
     closeGitLog,
+    applyScanProgress,
+    failScanActivity,
+    openScanModal,
+    closeScanModal,
   };
 });

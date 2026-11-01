@@ -10,12 +10,14 @@ pub async fn discover_repositories(
     max_depth: usize,
     config_state: State<'_, ConfigManager>,
     watcher_state: State<'_, WatcherState>,
+    event_bus: State<'_, EventBus>,
 ) -> Result<Vec<Repository>, String> {
     service::discover_repositories(
         config_state.inner(),
         watcher_state.inner(),
         paths,
         max_depth,
+        std::sync::Arc::new(event_bus.inner().clone()),
     )
     .await
 }
@@ -40,6 +42,29 @@ pub async fn commit_repo_changes(
     event_bus: State<'_, EventBus>,
 ) -> Result<OperationResult, String> {
     Ok(service::commit_repo_changes(path, message, event_bus.inner()).await)
+}
+
+/// Response of the start-generation command: `{ "runId": … }` (contract C1).
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerateCommitMessagesResponse {
+    pub run_id: String,
+}
+
+#[tauri::command]
+pub async fn generate_commit_messages(
+    repo_paths: Vec<String>,
+    run_id: Option<String>,
+    config: State<'_, ConfigManager>,
+    event_bus: State<'_, EventBus>,
+) -> Result<GenerateCommitMessagesResponse, String> {
+    let run_id = service::generate_commit_messages(
+        repo_paths,
+        run_id,
+        config.inner(),
+        std::sync::Arc::new(event_bus.inner().clone()),
+    )?;
+    Ok(GenerateCommitMessagesResponse { run_id })
 }
 
 #[tauri::command]

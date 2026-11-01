@@ -38,7 +38,8 @@ the `data:` JSON string, same convention as `git-step`).
 
 1. Exactly one `started` before any other event of a run; exactly one `done`
    terminalizes the run. After `done`, no further events carry that `runId`.
-2. `tick`: at most 1 per 400 ms per run. Droppable by design (broadcast lag).
+2. `tick`: at most 1 per 400 ms and at least 1 per 500 ms while a root is being
+   walked (heartbeat floor, SC-001); droppable by design (broadcast lag).
 3. `found`: never throttled; may be dropped **only** in extreme broadcast-lag
    bursts — `done.foundCount` is authoritative, consumers must reconcile counts
    with `max(seen, foundCount)`.
@@ -68,7 +69,7 @@ export interface ScanProgressEvent {
 
 ## C5. UI contract (consumer behavior, from spec FRs)
 
-- **Sidebar chip**: rendered only while `store.isScanning || scanActivitySummaryVisible`;
+- **Sidebar chip**: rendered only while `store.isScanning || store.scanActivity.summaryVisible`;
   click → `openScanModal()`; stays clickable ≈10 s after `done` (FR-003, FR-015).
 - **ScanActivityModal**: header = `currentDir` (middle-ellipsis, `title`=full) +
   found count + elapsed (1 Hz while running) **or** summary when `finished`

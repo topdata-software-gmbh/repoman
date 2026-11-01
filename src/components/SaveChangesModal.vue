@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { FileText, Save } from 'lucide-vue-next';
+import { FileText, RefreshCw, Save, Sparkles } from 'lucide-vue-next';
 import {
   TdAlert,
   TdBadge,
@@ -13,23 +13,35 @@ import {
 import { backend } from '../lib/backend';
 import { t, tPlural } from '../lib/i18n';
 import { useRepoStore } from '../stores/repoStore';
-import type { FileChange, FileChangeStatus, Repository } from '../types/domain';
+import type { CommitGenRowStatus, FileChange, FileChangeStatus, Repository } from '../types/domain';
 
 const store = useRepoStore();
 
 const repos = ref<Repository[]>([]);
 const changes = ref<Record<string, FileChange[]>>({});
-const message = ref('');
 const loading = ref(false);
 const saving = ref(false);
+const generating = ref(false);
 const error = ref('');
+
+const rows = computed(() => store.commitgen.list);
 
 const totalFiles = computed(() =>
   repos.value.reduce((sum, repo) => sum + (changes.value[repo.path]?.length ?? 0), 0),
 );
 
+const canGenerate = computed(
+  () =>
+    store.commitgen.configured &&
+    repos.value.length > 0 &&
+    !loading.value &&
+    !saving.value &&
+    !generating.value &&
+    !store.commitgen.generating,
+);
+
 const canSave = computed(
-  () => message.value.trim().length > 0 && repos.value.length > 0 && !loading.value && !saving.value,
+  () => store.commitgen.canCommit && repos.value.length > 0 && !loading.value && !saving.value,
 );
 
 watch(
@@ -40,10 +52,11 @@ watch(
     repos.value = store.dirtyRepositories.filter(
       (repo) => !store.saveModalPaths || store.saveModalPaths.includes(repo.path),
     );
+    store.ensureCommitGenRows(repos.value.map((repo) => repo.path));
     changes.value = {};
-    message.value = '';
     error.value = '';
     saving.value = false;
+    generating.value = false;
     void loadChanges();
   },
 );
@@ -110,13 +123,61 @@ function statusVariant(status: FileChangeStatus): ChangeVariant {
   }
 }
 
+function rowStatusLabel(status: CommitGenRowStatus): string {
+  switch (status) {
+    case 'generating':
+      return t('save.ai.status.generating');
+    case 'ready':
+      return t('save.ai.status.ready');
+    case 'error':
+      return t('save.ai.status.error');
+    default:
+      return t('save.ai.status.idle');
+  }
+}
+
+function rowVariant(status: CommitGenRowStatus): ChangeVariant {
+  switch (status) {
+    case 'generating':
+      return 'info';
+    case 'ready':
+      return 'success';
+    case 'error':
+      return 'error';
+    default:
+      return 'neutral';
+  }
+}
+
+function branchFor(path: string): string {
+  return repos.value.find((repo) => repo.path === path)?.state.currentBranch ?? '';
+}
+
+async function generate(): Promise<void> {
+  if (!canGenerate.value) return;
+
+  generating.value = true;
+  error.value = '';
+  try {
+    await store.startRun(repos.value.map((repo) => repo.path));
+  } catch (failure) {
+    error.value = String(failure);
+  } finally {
+    generating.value = false;
+  }
+}
+
+function retry(path: string): void {
+  void store.retryRepo(path);
+}
+
 async function save(): Promise<void> {
   if (!canSave.value) return;
 
   saving.value = true;
   error.value = '';
-  const paths = repos.value.map((repo) => repo.path);
-  const results = await store.commitRepositories(paths, message.value.trim());
+  const messages = Object.fromEntries(rows.value.map((row) => [row.path, row.message.trim()]));
+  const results = await store.commitRepositories(messages);
   const failures = results.filter((result) => !result.success);
 
   if (failures.length === 0) {
@@ -135,7 +196,7 @@ async function save(): Promise<void> {
 
   const failedPaths = new Set(failures.map((failure) => failure.repoPath));
   repos.value = repos.value.filter((repo) => failedPaths.has(repo.path));
-  message.value = '';
+  store.ensureCommitGenRows(repos.value.map((repo) => repo.path));
   error.value = failures
     .map((failure) => `${failure.repoPath.split(/[\\/]/).pop()}: ${failure.error ?? t('common.unknownError')}`)
     .join('\n\n');
@@ -164,21 +225,74 @@ async function save(): Promise<void> {
         {{ t('save.readingEllipsis') }}
       </div>
 
-      <div v-for="repo in repos" :key="repo.id" class="rounded-lg border border-border bg-surface">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-sm font-medium text-fg">{{ t('save.ai.draftLabel') }}</p>
+          <p class="text-xs text-fg-muted">
+            {{ store.commitgen.configured ? t('save.ai.draftHint') : t('save.ai.notConfigured') }}
+          </p>
+        </div>
+        <TdButton
+          variant="secondary"
+          :disabled="!canGenerate"
+          :loading="generating || store.commitgen.generating"
+          @click="generate"
+        >
+          <template #icon-left><Sparkles /></template>
+          {{ store.commitgen.generating ? t('save.ai.generating') : t('save.ai.generate') }}
+        </TdButton>
+      </div>
+
+      <div v-for="(row, index) in rows" :key="row.path" class="rounded-lg border border-border bg-surface">
         <div class="flex items-center justify-between gap-3 px-4 py-3">
           <div class="min-w-0">
-            <p class="truncate text-sm font-medium text-fg">{{ repo.name }}</p>
+            <p class="truncate text-sm font-medium text-fg">{{ row.name }}</p>
             <p class="truncate text-xs text-fg-muted">
-              {{ t('save.workingOn', { branch: repo.state.currentBranch }) }}
+              {{ t('save.workingOn', { branch: branchFor(row.path) }) }}
             </p>
           </div>
-          <TdBadge variant="neutral">{{ t('save.changed', { count: changes[repo.path]?.length ?? 0 }) }}</TdBadge>
+          <div class="flex shrink-0 items-center gap-2">
+            <TdBadge :variant="rowVariant(row.status)" size="sm">
+              {{ rowStatusLabel(row.status) }}
+            </TdBadge>
+            <TdButton
+              v-if="row.status === 'error'"
+              variant="ghost"
+              size="sm"
+              :title="t('save.ai.retry')"
+              @click="retry(row.path)"
+            >
+              <template #icon-left><RefreshCw /></template>
+            </TdButton>
+          </div>
         </div>
 
-        <div v-if="(changes[repo.path]?.length ?? 0) > 0" class="border-t border-border">
+        <div class="border-t border-border px-4 py-3">
+          <TdFormField
+            :label="t('save.ai.messageLabel', { name: row.name })"
+            :hint="t('save.ai.messageHint')"
+            required
+          >
+            <template #default="{ id, required }">
+              <TdTextarea
+                :id="id"
+                :model-value="row.message"
+                :required="required"
+                :rows="3"
+                :autofocus="index === 0"
+                class="resize-none font-mono text-xs"
+                :placeholder="t('save.messagePlaceholder')"
+                @update:model-value="(value: string) => store.setCommitGenMessage(row.path, value)"
+              />
+            </template>
+          </TdFormField>
+          <p v-if="row.error" class="mt-2 text-xs text-error">{{ row.error }}</p>
+        </div>
+
+        <div v-if="(changes[row.path]?.length ?? 0) > 0" class="border-t border-border">
           <div class="max-h-40 overflow-auto px-4 py-2">
             <div
-              v-for="change in changes[repo.path]"
+              v-for="change in changes[row.path]"
               :key="`${change.status}:${change.path}`"
               class="flex items-center gap-2 py-0.5 font-mono text-xs"
             >
@@ -194,23 +308,9 @@ async function save(): Promise<void> {
         </div>
       </div>
 
-      <TdFormField
-        :label="t('save.messageLabel')"
-        :hint="t('save.messageHint')"
-        required
-      >
-        <template #default="{ id, required }">
-          <TdTextarea
-            :id="id"
-            v-model="message"
-            :required="required"
-            :rows="3"
-            autofocus
-            class="resize-none"
-            :placeholder="t('save.messagePlaceholder')"
-          />
-        </template>
-      </TdFormField>
+      <p v-if="rows.length === 0" class="text-xs text-fg-muted">
+        {{ t('save.ai.manualHint') }}
+      </p>
 
       <TdAlert v-if="error" variant="error">
         <pre class="whitespace-pre-wrap font-mono text-xs">{{ error }}</pre>

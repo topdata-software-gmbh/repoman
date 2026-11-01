@@ -1,3 +1,4 @@
+use crate::commitgen::settings::AiSettings;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,6 +110,11 @@ pub struct AppConfig {
     pub groups: Vec<RepoGroup>,
     #[serde(default)]
     pub onboarding: OnboardingState,
+    /// Optional AI block for commit-message generation (specs/002, data-model E1).
+    /// `None` means the feature is visibly unavailable, never an error (US-5).
+    /// Persists the credential ENVIRONMENT VARIABLE NAME only — never a secret (FR-013).
+    #[serde(default)]
+    pub ai: Option<AiSettings>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

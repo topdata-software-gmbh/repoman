@@ -1,3 +1,4 @@
+use crate::commands::git_commands::GenerateCommitMessagesResponse;
 use crate::config::ConfigManager;
 use crate::models::{
     AppConfig, BranchInfo, FileChange, OnboardingState, OperationResult, RepoGroup, Repository,
@@ -150,6 +151,7 @@ async fn discover_repositories(
         state.watcher.as_ref(),
         request.paths,
         request.max_depth,
+        Arc::new(state.event_bus.clone()),
     )
     .await
     .map(Json)
@@ -164,6 +166,31 @@ async fn refresh_repository(Json(request): Json<RefreshRequest>) -> ApiResult<Re
 
 async fn list_repo_changes(Json(request): Json<RepoRequest>) -> ApiResult<Vec<FileChange>> {
     Ok(Json(service::list_repo_changes(request.path).await))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GenerateCommitMessagesRequest {
+    repo_paths: Vec<String>,
+    run_id: Option<String>,
+}
+
+/// Starts a generation run; answers 202 with the runId (contract C3).
+async fn generate_commit_messages(
+    State(state): State<Arc<WebState>>,
+    Json(request): Json<GenerateCommitMessagesRequest>,
+) -> Result<(StatusCode, Json<GenerateCommitMessagesResponse>), (StatusCode, String)> {
+    let run_id = service::generate_commit_messages(
+        request.repo_paths,
+        request.run_id,
+        state.config.as_ref(),
+        Arc::new(state.event_bus.clone()),
+    )
+    .map_err(api_error)?;
+    Ok((
+        StatusCode::ACCEPTED,
+        Json(GenerateCommitMessagesResponse { run_id }),
+    ))
 }
 
 async fn commit_repo_changes(
@@ -225,6 +252,16 @@ async fn repo_events(
             crate::events::AppEvent::GitStep(step) => serde_json::to_string(&step)
                 .ok()
                 .map(|json| Ok::<_, Infallible>(Event::default().event("git-step").data(json))),
+            crate::events::AppEvent::ScanProgress(progress) => {
+                serde_json::to_string(&progress).ok().map(|json| {
+                    Ok::<_, Infallible>(Event::default().event("scan-progress").data(json))
+                })
+            }
+            crate::events::AppEvent::CommitGen(commit_gen) => {
+                serde_json::to_string(&commit_gen).ok().map(|json| {
+                    Ok::<_, Infallible>(Event::default().event("commitgen-repo").data(json))
+                })
+            }
         });
 
     Sse::new(stream).keep_alive(KeepAlive::default())
@@ -318,6 +355,10 @@ async fn serve(options: WebOptions) -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/repositories/refresh", post(refresh_repository))
         .route("/api/repositories/changes", post(list_repo_changes))
         .route("/api/repositories/commit", post(commit_repo_changes))
+        .route(
+            "/api/repositories/generate-commit-messages",
+            post(generate_commit_messages),
+        )
         .route("/api/repositories/actions", post(execute_group_action))
         .route("/api/repositories/switch-branch", post(switch_group_branch))
         .route("/api/branches", post(list_group_branches))
