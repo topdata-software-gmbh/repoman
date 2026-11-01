@@ -44,7 +44,7 @@ decision made during design (validated against the serdesAI source at
 
 ## R7. Configuration & credential handling
 
-- **Decision**: Optional `ai` block in `AppConfig` (`config.rs`, same atomic writer): `{ provider baseUrl, model, apiKeyEnv: "OPENAI_API_KEY" default, maxToolCalls: 12, diffBudgetChars: 40000 }`. At run start the named env var is read on the server process; absent → per-repo `error` phase with reason naming the variable. v1: no settings UI; file-edit only (spec out-of-scope).
+- **Decision**: Optional `ai` block in `AppConfig` (`config.rs`, same atomic writer): `{ provider baseUrl, model, apiKeyEnv: "OPENAI_API_KEY" default, maxToolCalls: 12, diffBudgetChars: 40000 }`. At run start the named env var is read on the server process; absent → per-repo `error` phase with reason naming the variable. v1: no settings UI; file-edit only (spec out-of-scope). **Addendum (analyze A1)**: `apiKeyEnv: ""` designates a keyless local provider (Ollama path in quickstart) — only a non-empty name that is unset triggers the all-rows error path.
 - **Rationale**: Principle Security (no plaintext secrets ever); "disabled-but-visible button when unconfigured" (US-5) needs only `config.ai.is_none()`; Tauri env access differs from a browser's — on web the repoman **server's** environment is the credential source, which the spec's FR-013 wording already matches ("read at request time" by the app that commits).
 - **Alternatives considered**: store key in AppConfig (rejected — Security section); OS keyring/stronghold plugin (rejected for v1 scope; a later MINOR can add a settings UI + keyring without contract changes); reuse sb's `model-assignments.toml` (rejected in design session — silent cross-tool coupling).
 

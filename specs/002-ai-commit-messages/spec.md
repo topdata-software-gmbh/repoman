@@ -147,4 +147,5 @@ A user without AI settings (or without the referenced environment credential) se
 - The existing CLI precedent (super-bin `sb gsum`) is the behavioral reference for prompt style, lookup budget, and output format, but repoman's batch-per-repo UI has no equivalent and is new.
 - Lookup-budget default (12) and change-detail size default (~40,000 characters) mirror the proven CLI values; both are configuration-adjustable.
 - The model may be unavailable or slow; per-row failure plus manual entry is an acceptable complete fallback.
+- If the configured provider requires no credential (local endpoints), generation works with none present; FR-013 then simply has nothing to read and the missing-credential failure path does not apply (the configuration spelling of "keyless" belongs to the contract/plan, not this spec).
 - Out of scope for this feature: committing/pushing driven by the generator itself, learning message style beyond recent history, multi-model fallback chains, a settings UI for AI configuration (editing the settings file is sufficient for v1).

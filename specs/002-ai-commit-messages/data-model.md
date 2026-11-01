@@ -11,7 +11,7 @@ Rust types. The **only** persisted structure is `AiSettings` inside the existing
 |---|---|---|---|
 | `baseUrl` | string | — | OpenAI-compatible endpoint (e.g. `https://openrouter.ai/api/v1`, `http://localhost:11434/v1`) |
 | `model` | string | — | model id passed to the provider (e.g. `anthropic/claude-sonnet-4.5`) |
-| `apiKeyEnv` | string | `"OPENAI_API_KEY"` | **name** of the environment variable holding the credential; the value is never persisted (FR-013) |
+| `apiKeyEnv` | string | `"OPENAI_API_KEY"` | **name** of the environment variable holding the credential; the value is never persisted (FR-013). Empty string `""` ⇒ keyless provider: lookup skipped, no auth header (analyze A1) |
 | `maxToolCalls` | u32 | 12 | per-run lookup budget, passed as serdesAI `max_tool_calls` (FR-010) |
 | `diffBudgetChars` | usize | 40 000 | hard cap on change-detail sent per repo (FR-009) |
 

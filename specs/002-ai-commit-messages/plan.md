@@ -87,7 +87,8 @@ src-tauri/src/
 │   ├── agent.rs                 # Agent<RepoCtx, CommitDraft> wiring, prompt, retries
 │   └── tools.rs                 # read_file / file_at_head / recent_history / grep
 │                                #   (FunctionTool closures, sandboxed to RepoCtx.path)
-├── service.rs                   # MODIFY: generate_commit_messages entry (semaphore=8,
+├── service.rs                   # MODIFY: generate_commit_messages entry (semaphore=8 is
+│                                #   end-state; the semaphore itself arrives at T019/US2,
 │                                #   tokio::spawn per repo) + CommitGenObserver
 ├── events.rs                    # MODIFY: AppEvent::CommitGen(CommitGenEvent)
 ├── watcher.rs                   # MODIFY: EventBus implements CommitGenObserver

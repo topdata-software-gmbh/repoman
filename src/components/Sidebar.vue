@@ -1,27 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import {
-  CheckCircle2,
-  Eye,
-  EyeOff,
-  FolderGit2,
-  FolderSearch,
-  HelpCircle,
-  Layers,
-  MoreHorizontal,
-  Moon,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Sparkles,
-  Sun,
-  X,
-} from 'lucide-vue-next';
-import {
   TdButton,
+  TdIcon,
   TdLanguageSwitcher,
   TdMenu,
   TdMenuItem,
+  TdSidebar,
+  TdSidebarBody,
+  TdSidebarFooter,
+  TdSidebarHeader,
+  TdSidebarItem,
+  TdSidebarSection,
   TdSpinner,
   useTheme,
   type TdLanguageOption,
@@ -76,38 +66,35 @@ function scanChipLabel(): string {
 </script>
 
 <template>
-  <aside class="flex w-64 shrink-0 flex-col border-r border-border bg-canvas">
-    <div class="flex-1 overflow-y-auto px-3 py-4">
-      <div class="mb-5 flex items-center gap-2.5 px-2">
+  <TdSidebar tone="canvas" class="w-64 shrink-0">
+    <TdSidebarHeader>
+      <div class="flex items-center gap-2.5">
         <div
           class="flex h-8 w-8 items-center justify-center rounded-[10px] bg-primary text-on-primary shadow-sm"
         >
-          <FolderGit2 class="h-4 w-4" />
+          <TdIcon name="folder-git" />
         </div>
         <p class="truncate text-[13px] font-semibold text-fg">RepoMan</p>
       </div>
+    </TdSidebarHeader>
 
-      <nav class="sidebar-nav space-y-0.5">
-        <TdButton
-          variant="ghost"
-          block
-          class="justify-between px-2.5 py-2 text-[13px]"
-          :class="
-            store.selectedGroupId === 'all'
-              ? 'bg-surface font-medium text-fg shadow-sm'
-              : 'text-fg-muted hover:text-fg'
-          "
+    <TdSidebarBody>
+      <TdSidebarSection>
+        <TdSidebarItem
+          icon="layers"
+          :active="store.selectedGroupId === 'all'"
+          :aria-current="store.selectedGroupId === 'all' ? 'page' : undefined"
           @click="store.selectGroup('all')"
         >
-          <template #icon-left><Layers class="h-4 w-4" /></template>
-          <span class="flex w-full items-center justify-between">
-            <span>{{ t('sidebar.allProjects') }}</span>
+          {{ t('sidebar.allProjects') }}
+          <template #trailing>
             <span class="text-[11px] text-fg-dim">{{ store.repositories.length }}</span>
-          </span>
-        </TdButton>
+          </template>
+        </TdSidebarItem>
+      </TdSidebarSection>
 
-        <div class="flex items-center justify-between px-2 pb-1 pt-5">
-          <span class="text-[11px] font-medium text-fg-muted">{{ t('sidebar.groups') }}</span>
+      <TdSidebarSection :label="t('sidebar.groups')">
+        <template #action>
           <TdButton
             variant="ghost"
             size="sm"
@@ -116,9 +103,9 @@ function scanChipLabel(): string {
             :aria-label="t('sidebar.newGroup')"
             @click="store.openGroupEditor(null)"
           >
-            <template #icon-left><Plus class="h-3.5 w-3.5" /></template>
+            <template #icon-left><TdIcon name="plus" /></template>
           </TdButton>
-        </div>
+        </template>
 
         <p
           v-if="store.config.groups.length === 0"
@@ -127,52 +114,37 @@ function scanChipLabel(): string {
           {{ t('sidebar.createGroupHint') }}
         </p>
 
-        <div
-          v-for="group in store.config.groups"
-          :key="group.id"
-          class="group flex items-center gap-1 rounded-lg pr-1 transition-colors"
-          :class="
-            store.selectedGroupId === group.id
-              ? 'bg-surface shadow-sm'
-              : 'hover:bg-surface/60'
-          "
-        >
-          <TdButton
-            variant="ghost"
-            block
-            class="min-w-0 flex-1 justify-between px-2.5 py-2 text-[13px]"
-            :class="
-              store.selectedGroupId === group.id
-                ? 'font-medium text-fg'
-                : 'text-fg-muted hover:text-fg'
-            "
+        <div v-for="group in store.config.groups" :key="group.id" class="group">
+          <TdSidebarItem
+            :active="store.selectedGroupId === group.id"
+            :aria-current="store.selectedGroupId === group.id ? 'page' : undefined"
             @click="store.selectGroup(group.id)"
           >
-            <span class="flex w-full items-center justify-between gap-2">
-              <span class="flex min-w-0 items-center gap-2">
-                <span
-                  class="h-2 w-2 shrink-0 rounded-full"
-                  :style="groupColorStyle(group.color)"
-                ></span>
-                <span class="truncate">{{ group.name }}</span>
-              </span>
-              <span class="text-[11px] text-fg-dim">{{ repoCount(group) }}</span>
-            </span>
-          </TdButton>
-          <TdButton
-            variant="ghost"
-            size="sm"
-            class="p-1 text-fg-dim opacity-0 transition-opacity group-hover:opacity-100"
-            :title="t('sidebar.editGroup')"
-            :aria-label="t('sidebar.editGroup')"
-            @click.stop="store.openGroupEditor(group)"
-          >
-            <template #icon-left><Pencil class="h-3.5 w-3.5" /></template>
-          </TdButton>
+          <template #icon>
+            <span class="h-2 w-2 shrink-0 rounded-full" :style="groupColorStyle(group.color)"></span>
+          </template>
+          <span class="truncate">{{ group.name }}</span>
+          <template #trailing>
+            <span class="text-[11px] text-fg-dim">{{ repoCount(group) }}</span>
+          </template>
+            <template #actions>
+              <TdButton
+                variant="ghost"
+                size="sm"
+                class="p-1 text-fg-dim opacity-0 transition-opacity group-hover:opacity-100"
+                :title="t('sidebar.editGroup')"
+                :aria-label="t('sidebar.editGroup')"
+                @click.stop="store.openGroupEditor(group)"
+              >
+                <template #icon-left><TdIcon name="pencil" /></template>
+              </TdButton>
+            </template>
+          </TdSidebarItem>
         </div>
+      </TdSidebarSection>
 
-        <div class="flex items-center justify-between px-2 pb-1 pt-5">
-          <span class="text-[11px] font-medium text-fg-muted">{{ t('sidebar.folders') }}</span>
+      <TdSidebarSection :label="t('sidebar.folders')">
+        <template #action>
           <TdButton
             variant="ghost"
             size="sm"
@@ -181,9 +153,9 @@ function scanChipLabel(): string {
             :aria-label="t('sidebar.addFolder')"
             @click="store.openAddScanPath"
           >
-            <template #icon-left><Plus class="h-3.5 w-3.5" /></template>
+            <template #icon-left><TdIcon name="plus" /></template>
           </TdButton>
-        </div>
+        </template>
 
         <p
           v-if="store.config.scanPaths.length === 0"
@@ -192,25 +164,24 @@ function scanChipLabel(): string {
           {{ t('sidebar.addFolderHint') }}
         </p>
 
-        <div
-          v-for="scanPath in store.config.scanPaths"
-          :key="scanPath.id"
-          class="group flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface"
-        >
-          <TdButton
-            variant="ghost"
-            size="sm"
-            class="p-0.5"
-            :class="scanPath.enabled ? 'text-fg-muted' : 'text-fg-dim'"
-            :title="scanPath.enabled ? t('sidebar.stopLooking') : t('sidebar.startLooking')"
-            :aria-label="scanPath.enabled ? t('sidebar.stopLooking') : t('sidebar.startLooking')"
-            @click="store.toggleScanPath(scanPath)"
-          >
-            <template #icon-left>
-              <Eye v-if="scanPath.enabled" class="h-3.5 w-3.5" />
-              <EyeOff v-else class="h-3.5 w-3.5" />
-            </template>
-          </TdButton>
+        <div v-for="scanPath in store.config.scanPaths" :key="scanPath.id" class="group">
+          <TdSidebarItem as="div">
+          <template #leading>
+            <TdButton
+              variant="ghost"
+              size="sm"
+              class="p-0.5"
+              :class="scanPath.enabled ? 'text-fg-muted' : 'text-fg-dim'"
+              :title="scanPath.enabled ? t('sidebar.stopLooking') : t('sidebar.startLooking')"
+              :aria-label="scanPath.enabled ? t('sidebar.stopLooking') : t('sidebar.startLooking')"
+              @click="store.toggleScanPath(scanPath)"
+            >
+              <template #icon-left>
+                <TdIcon :name="scanPath.enabled ? 'eye' : 'eye-off'" />
+              </template>
+            </TdButton>
+          </template>
+
           <span
             class="min-w-0 flex-1 truncate text-[11px]"
             :class="scanPath.enabled ? 'text-fg-muted' : 'text-fg-dim line-through'"
@@ -218,23 +189,27 @@ function scanChipLabel(): string {
           >
             {{ scanPath.path }}
           </span>
-          <TdButton
-            variant="ghost"
-            size="sm"
-            class="p-0.5 text-fg-dim opacity-0 transition-opacity hover:text-error-fg group-hover:opacity-100"
-            :title="t('sidebar.removeFolder')"
-            :aria-label="t('sidebar.removeFolder')"
-            @click="removeScanPath(scanPath.id, scanPath.path)"
-          >
-            <template #icon-left><X class="h-3.5 w-3.5" /></template>
-          </TdButton>
-        </div>
-      </nav>
-    </div>
 
-    <div class="space-y-2 border-t border-border p-3">
+            <template #actions>
+              <TdButton
+                variant="ghost"
+                size="sm"
+                class="p-0.5 text-fg-dim opacity-0 transition-opacity hover:text-error-fg group-hover:opacity-100"
+                :title="t('sidebar.removeFolder')"
+                :aria-label="t('sidebar.removeFolder')"
+                @click="removeScanPath(scanPath.id, scanPath.path)"
+              >
+                <template #icon-left><TdIcon name="x" /></template>
+              </TdButton>
+            </template>
+          </TdSidebarItem>
+        </div>
+      </TdSidebarSection>
+    </TdSidebarBody>
+
+    <TdSidebarFooter class="space-y-2">
       <TdButton variant="primary" block size="sm" @click="store.openAddScanPath">
-        <template #icon-left><FolderSearch class="h-3.5 w-3.5" /></template>
+        <template #icon-left><TdIcon name="folder-search" /></template>
         <span>{{ t('sidebar.addFolder') }}</span>
       </TdButton>
 
@@ -248,11 +223,12 @@ function scanChipLabel(): string {
         >
           <template #icon-left>
             <TdSpinner v-if="store.isScanning" size="sm" />
-            <CheckCircle2
+            <TdIcon
               v-else-if="store.scanActivity.summaryVisible"
-              class="h-3.5 w-3.5 text-success-fg"
+              name="check-circle"
+              class="text-success-fg"
             />
-            <RefreshCw v-else class="h-3.5 w-3.5" />
+            <TdIcon v-else name="refresh" />
           </template>
           <span>{{ scanChipLabel() }}</span>
         </TdButton>
@@ -273,8 +249,7 @@ function scanChipLabel(): string {
           @click="toggleTheme"
         >
           <template #icon-left>
-            <Sun v-if="mode === 'dark'" class="h-3.5 w-3.5" />
-            <Moon v-else class="h-3.5 w-3.5" />
+            <TdIcon :name="mode === 'dark' ? 'sun' : 'moon'" />
           </template>
         </TdButton>
 
@@ -288,26 +263,19 @@ function scanChipLabel(): string {
               aria-haspopup="menu"
               :aria-expanded="open"
             >
-              <template #icon-left><MoreHorizontal class="h-3.5 w-3.5" /></template>
+              <template #icon-left><TdIcon name="more-horizontal" /></template>
             </TdButton>
           </template>
           <TdMenuItem @select="store.openOnboarding(true)">
-            <template #icon><Sparkles class="h-3.5 w-3.5" /></template>
+            <template #icon><TdIcon name="sparkles" /></template>
             {{ t('sidebar.runSetupAgain') }}
           </TdMenuItem>
           <TdMenuItem @select="store.openHelp">
-            <template #icon><HelpCircle class="h-3.5 w-3.5" /></template>
+            <template #icon><TdIcon name="help-circle" /></template>
             {{ t('sidebar.howThisWorks') }}
           </TdMenuItem>
         </TdMenu>
       </div>
-    </div>
-  </aside>
+    </TdSidebarFooter>
+  </TdSidebar>
 </template>
-
-<style scoped>
-.sidebar-nav :deep(.td-button__label) {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-</style>

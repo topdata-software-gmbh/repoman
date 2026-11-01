@@ -47,6 +47,11 @@ tasks, or format messages — all of that lives in `service`/`commitgen`.
 | Repo has no pending changes | per-row `phase=error`, reason "nothing to summarize" | row error + manual typing still possible |
 | Repo in conflict state | per-row `phase=error`, reason "merge conflicts — resolve first" | row error; commit gating unchanged |
 
+**Keyless providers (analyze A1 decision)**: an `apiKeyEnv` of `""` explicitly
+means "no credential required" — the env lookup is skipped, no auth header is
+sent, and the missing-credential refusal above does NOT apply. A *non-empty*
+variable name that is unset still triggers it.
+
 **Security invariants**
 
 - `apiKeyEnv` value is read from the server process environment at run start

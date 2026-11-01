@@ -49,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The sidebar now uses the shared `TdSidebar*` primitives and `TdIcon` while
+  keeping grouped rows, folder controls, and footer actions.
 - The Save dialog now commits each project with its own message instead of one
   shared message; typing manually behaves exactly as before.
 - Renamed the project and CLI from `git-repo-manager` to `repoman`: the installed
