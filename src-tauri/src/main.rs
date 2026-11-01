@@ -2,8 +2,8 @@ mod commands {
     pub mod config_commands;
     pub mod git_commands;
 }
-mod config;
 mod commitgen;
+mod config;
 mod events;
 mod git_log;
 mod git_runner;

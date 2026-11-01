@@ -25,6 +25,7 @@ const generating = ref(false);
 const error = ref('');
 
 const rows = computed(() => store.commitgen.list);
+const aiState = computed(() => store.commitgen.aiState);
 
 const totalFiles = computed(() =>
   repos.value.reduce((sum, repo) => sum + (changes.value[repo.path]?.length ?? 0), 0),
@@ -149,6 +150,29 @@ function rowVariant(status: CommitGenRowStatus): ChangeVariant {
   }
 }
 
+function isRetryable(reason: string | null): boolean {
+  if (!reason) return true;
+  return !(
+    reason.startsWith('nothing-to-summarize') || reason.startsWith('merge-conflicts')
+  );
+}
+
+function reasonText(reason: string | null): string {
+  if (!reason) return t('save.ai.errors.provider');
+  if (reason.startsWith('missing-credential:')) {
+    return t('save.ai.missingKey', { envVar: reason.slice('missing-credential:'.length) });
+  }
+  if (reason.startsWith('nothing-to-summarize')) return t('save.ai.errors.nothingToSummarize');
+  if (reason.startsWith('merge-conflicts')) return t('save.ai.errors.conflicts');
+  if (reason.startsWith('empty-result')) return t('save.ai.errors.empty');
+  if (reason.startsWith('malformed-draft')) return t('save.ai.errors.malformed');
+  if (reason.startsWith('provider-unreachable') || reason.startsWith('model-error')) {
+    return t('save.ai.errors.provider');
+  }
+  if (reason.startsWith('repository-unreadable')) return t('save.ai.errors.unreadable');
+  return reason;
+}
+
 function branchFor(path: string): string {
   return repos.value.find((repo) => repo.path === path)?.state.currentBranch ?? '';
 }
@@ -161,7 +185,8 @@ async function generate(): Promise<void> {
   try {
     await store.startRun(repos.value.map((repo) => repo.path));
   } catch (failure) {
-    error.value = String(failure);
+    const message = String(failure);
+    error.value = message.includes('ai-not-configured') ? t('save.ai.notConfigured') : message;
   } finally {
     generating.value = false;
   }
@@ -229,12 +254,19 @@ async function save(): Promise<void> {
         <div class="min-w-0">
           <p class="text-sm font-medium text-fg">{{ t('save.ai.draftLabel') }}</p>
           <p class="text-xs text-fg-muted">
-            {{ store.commitgen.configured ? t('save.ai.draftHint') : t('save.ai.notConfigured') }}
+            {{
+              aiState === 'missing'
+                ? t('save.ai.notConfigured')
+                : aiState === 'invalid'
+                  ? t('save.ai.badConfig')
+                  : t('save.ai.draftHint')
+            }}
           </p>
         </div>
         <TdButton
           variant="secondary"
           :disabled="!canGenerate"
+          :title="canGenerate ? undefined : aiState === 'missing' ? t('save.ai.notConfigured') : t('save.ai.badConfig')"
           :loading="generating || store.commitgen.generating"
           @click="generate"
         >
@@ -252,11 +284,12 @@ async function save(): Promise<void> {
             </p>
           </div>
           <div class="flex shrink-0 items-center gap-2">
+            <TdSpinner v-if="row.status === 'generating'" size="sm" :label="t('save.ai.generating')" />
             <TdBadge :variant="rowVariant(row.status)" size="sm">
               {{ rowStatusLabel(row.status) }}
             </TdBadge>
             <TdButton
-              v-if="row.status === 'error'"
+              v-if="row.status === 'error' && isRetryable(row.error)"
               variant="ghost"
               size="sm"
               :title="t('save.ai.retry')"
@@ -279,6 +312,7 @@ async function save(): Promise<void> {
                 :model-value="row.message"
                 :required="required"
                 :rows="3"
+                :disabled="row.status === 'generating'"
                 :autofocus="index === 0"
                 class="resize-none font-mono text-xs"
                 :placeholder="t('save.messagePlaceholder')"
@@ -286,7 +320,7 @@ async function save(): Promise<void> {
               />
             </template>
           </TdFormField>
-          <p v-if="row.error" class="mt-2 text-xs text-error">{{ row.error }}</p>
+          <p v-if="row.error" class="mt-2 text-xs text-error">{{ reasonText(row.error) }}</p>
         </div>
 
         <div v-if="(changes[row.path]?.length ?? 0) > 0" class="border-t border-border">

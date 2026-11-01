@@ -49,6 +49,13 @@ impl ScanObserver for EventBus {
 
 impl crate::service::CommitGenObserver for EventBus {
     fn on_commit_gen(&self, event: &crate::commitgen::CommitGenEvent) {
+        // Observability only: the payload itself never carries a credential.
+        tracing::debug!(
+            phase = event.phase_tag(),
+            path = event.path(),
+            run_id = event.run_id(),
+            "commitgen event"
+        );
         let _ = self.sender.send(AppEvent::CommitGen(event.clone()));
     }
 }

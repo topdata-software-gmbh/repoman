@@ -174,6 +174,71 @@ describe('commitgen slice', () => {
     expect(store.commitgen.canCommit).toBe(true);
   });
 
+  it('updates interleaved events for different paths independently (US2-AC2)', async () => {
+    const store = await startedStore([PATH_A, PATH_B]);
+
+    store.handleCommitGenEvent(event({ phase: 'started', path: PATH_A }));
+    store.handleCommitGenEvent(event({ phase: 'started', path: PATH_B }));
+    store.handleCommitGenEvent(done('feat: alpha', PATH_A));
+
+    expect(store.commitgen.rows.get(PATH_A)?.status).toBe('ready');
+    expect(store.commitgen.rows.get(PATH_B)?.status).toBe('generating');
+    expect(store.commitgen.canCommit).toBe(false);
+
+    store.handleCommitGenEvent(done('fix: beta', PATH_B));
+    expect(store.commitgen.canCommit).toBe(true);
+  });
+
+  it('an error for one path leaves sibling drafts and edits untouched (SC-004)', async () => {
+    const store = await startedStore([PATH_A, PATH_B]);
+
+    store.handleCommitGenEvent(done('feat: alpha draft', PATH_A));
+    store.setCommitGenMessage(PATH_A, 'feat: alpha edited');
+
+    store.handleCommitGenEvent(event({ phase: 'error', path: PATH_B, error: 'provider down' }));
+
+    expect(store.commitgen.rows.get(PATH_A)).toMatchObject({
+      status: 'ready',
+      message: 'feat: alpha edited',
+      dirty: true,
+    });
+    expect(store.commitgen.rows.get(PATH_B)).toMatchObject({
+      status: 'error',
+      message: '',
+    });
+  });
+
+  it('a retry started clears only that row and its dirty flag (FR-015)', async () => {
+    const store = await startedStore([PATH_A, PATH_B]);
+    store.handleCommitGenEvent(done('feat: alpha', PATH_A));
+    store.handleCommitGenEvent(event({ phase: 'error', path: PATH_B, error: 'boom' }));
+    store.setCommitGenMessage(PATH_B, 'chore: manual b');
+
+    generateCommitMessages.mockResolvedValueOnce(RUN);
+    await store.retryRepo(PATH_B);
+    store.handleCommitGenEvent(event({ phase: 'started', path: PATH_B }));
+
+    expect(store.commitgen.rows.get(PATH_B)).toMatchObject({
+      status: 'generating',
+      dirty: false,
+      error: null,
+    });
+    expect(store.commitgen.rows.get(PATH_A)?.message).toBe('feat: alpha');
+  });
+
+  it('de-selecting a repo drops its row and ignores in-flight results', async () => {
+    const store = await startedStore([PATH_A, PATH_B]);
+    store.handleCommitGenEvent(done('feat: alpha', PATH_A));
+
+    // The modal re-seeds rows for the new selection (data-model E4 rule 3).
+    store.ensureCommitGenRows([PATH_A]);
+    store.handleCommitGenEvent(done('fix: beta late', PATH_B));
+
+    expect(store.commitgen.rows.has(PATH_B)).toBe(false);
+    expect(store.commitgen.rows.get(PATH_A)?.message).toBe('feat: alpha');
+    expect(store.commitgen.canCommit).toBe(true);
+  });
+
   it('closing the dialog discards the whole slice (FR-007)', async () => {
     const store = await startedStore();
     store.handleCommitGenEvent(done('feat: transient'));

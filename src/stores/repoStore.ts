@@ -19,6 +19,7 @@ import {
 } from '../lib/repoFilters';
 import { branchLabel, statusBadges } from '../lib/repoStatus';
 import type {
+  AiSettings,
   AppConfig,
   BranchInfo,
   CommitGenEvent,
@@ -762,14 +763,28 @@ export const useRepoStore = defineStore('repo', () => {
   });
 
   /** Session-only view of the active run; discarded when the dialog closes. */
-  const commitgen = computed(() => ({
-    activeRunId: commitGenActiveRunId.value,
-    rows: commitGenRows.value,
-    list: commitGenRowsList.value,
-    generating: commitGenGenerating.value,
-    canCommit: commitGenCanCommit.value,
-    configured: Boolean(config.value.ai),
-  }));
+  const commitgen = computed(() => {
+    const aiState = aiSettingsState(config.value.ai);
+    return {
+      activeRunId: commitGenActiveRunId.value,
+      rows: commitGenRows.value,
+      list: commitGenRowsList.value,
+      generating: commitGenGenerating.value,
+      canCommit: commitGenCanCommit.value,
+      aiState,
+      configured: aiState === 'ready',
+    };
+  });
+
+  /** Mirrors `AiSettings::validate()` closely enough to gate the UI (T046). */
+  function aiSettingsState(ai: AiSettings | null | undefined): 'missing' | 'invalid' | 'ready' {
+    if (!ai) return 'missing';
+    const baseUrl = (ai.baseUrl ?? '').trim();
+    const urlOk = /^https?:\/\/\S+/i.test(baseUrl);
+    const modelOk = (ai.model ?? '').trim().length > 0;
+    const envOk = (ai.apiKeyEnv ?? '').trim().length > 0;
+    return urlOk && modelOk && envOk ? 'ready' : 'invalid';
+  }
 
   function repoNameFor(path: string): string {
     const repo = repositories.value.find((entry) => entry.path === path);

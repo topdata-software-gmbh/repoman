@@ -35,6 +35,8 @@ pub struct RepoCtx {
     pub repo_name: String,
     /// Lookups already performed in this attempt (budget enforcement, FR-010).
     pub tool_calls_used: AtomicU32,
+    /// Per-attempt lookup budget from `AiSettings::max_tool_calls`.
+    pub lookup_limit: u32,
 }
 
 impl RepoCtx {
@@ -43,7 +45,14 @@ impl RepoCtx {
             path,
             repo_name: repo_name.into(),
             tool_calls_used: AtomicU32::new(0),
+            lookup_limit: 12,
         }
+    }
+
+    /// Sets the per-attempt lookup budget (default 12).
+    pub fn with_lookup_limit(mut self, limit: u32) -> Self {
+        self.lookup_limit = limit;
+        self
     }
 
     /// Claims one lookup from the per-run budget.
@@ -59,6 +68,8 @@ impl RepoCtx {
             .is_ok()
     }
 
+    /// Diagnostics and tests; the budget itself is enforced by `claim_lookup`.
+    #[allow(dead_code)]
     pub fn lookups_used(&self) -> u32 {
         self.tool_calls_used.load(Ordering::SeqCst)
     }
@@ -159,9 +170,11 @@ pub fn build_system_prompt(ctx: &RepoCtx, detail: &ChangeDetail) -> String {
 /// Generates one repository's draft. Errors are per repository by construction:
 /// this function never touches another repository (FR-008, Principle V).
 pub async fn generate_for_repo(request: DraftRequest<'_>) -> Result<CommitDraft, CommitGenError> {
-    let credential = request.credential.ok_or_else(|| CommitGenError::MissingCredential {
-        env_var: request.settings.api_key_env.clone(),
-    })?;
+    let credential = request
+        .credential
+        .ok_or_else(|| CommitGenError::MissingCredential {
+            env_var: request.settings.api_key_env.clone(),
+        })?;
 
     let model = OpenAIChatModel::new(request.settings.model.clone(), credential)
         .with_base_url(request.settings.base_url.clone());
@@ -173,25 +186,38 @@ pub async fn generate_for_repo(request: DraftRequest<'_>) -> Result<CommitDraft,
         .requests(request.settings.max_tool_calls.saturating_add(6));
     let budget = request.settings.max_tool_calls;
 
-    let agent = AgentBuilder::<Arc<RepoCtx>, String>::new(model)
+    let mut builder = AgentBuilder::<RepoCtx, String>::new(model)
         .system_prompt(build_system_prompt(&request.ctx, request.change_detail))
         .output_type::<CommitDraft>()
-        .output_validator_fn(move |draft: CommitDraft, _ctx: &RunContext<Arc<RepoCtx>>| {
+        .output_validator_fn(move |draft: CommitDraft, _ctx: &RunContext<RepoCtx>| {
             validate_draft(draft, budget)
         })
         .usage_limits(limits)
         // exact lookup accounting: a parallel batch is charged up front by the framework
         .parallel_tool_calls(false)
-        .max_output_retries(MAX_OUTPUT_RETRIES)
-        .build();
+        .max_output_retries(MAX_OUTPUT_RETRIES);
 
-    run_with_backoff(&agent, Arc::clone(&request.ctx), request.change_detail.prompt.clone()).await
+    for (definition, executor) in crate::commitgen::tools::tool_executors() {
+        builder = builder.tool_with_executor(definition, executor);
+    }
+    let agent = builder.build();
+
+    run_with_backoff(
+        &agent,
+        request.ctx.path.clone(),
+        request.ctx.repo_name.clone(),
+        request.settings.max_tool_calls,
+        request.change_detail.prompt.clone(),
+    )
+    .await
 }
 
 /// Retries retryable provider failures with exponential backoff (research R8).
 async fn run_with_backoff(
-    agent: &serdes_ai::agent::Agent<Arc<RepoCtx>, CommitDraft>,
-    deps: Arc<RepoCtx>,
+    agent: &serdes_ai::agent::Agent<RepoCtx, CommitDraft>,
+    repo_path: std::path::PathBuf,
+    repo_name: String,
+    lookup_limit: u32,
     prompt: String,
 ) -> Result<CommitDraft, CommitGenError> {
     let backoff = ExponentialBackoff::new();
@@ -199,7 +225,10 @@ async fn run_with_backoff(
 
     loop {
         attempt += 1;
-        match agent.run(prompt.clone(), Arc::clone(&deps)).await {
+        // Fresh dependencies (and a fresh lookup budget) per attempt.
+        let deps =
+            RepoCtx::new(repo_path.clone(), repo_name.clone()).with_lookup_limit(lookup_limit);
+        match agent.run(prompt.clone(), deps).await {
             Ok(result) => {
                 let draft = result.into_output().normalized();
                 if draft.subject.trim().is_empty() {
@@ -209,7 +238,8 @@ async fn run_with_backoff(
             }
             Err(error) => {
                 let mapped = map_run_error(error);
-                if !mapped.is_retryable_attempt() || attempt >= MAX_PROVIDER_ATTEMPTS {
+                let retryable = mapped.is_retryable_attempt() && mapped.error.is_retryable();
+                if !retryable || attempt >= MAX_PROVIDER_ATTEMPTS {
                     return Err(mapped.into_error());
                 }
                 tokio::time::sleep(backoff.calculate_delay(attempt)).await;
@@ -236,10 +266,9 @@ fn validate_draft(
                 "subject",
                 format!("subject is {length} characters, maximum is 72"),
             ),
-            DraftValidationError::SubjectTrailingPeriod => OutputValidationError::field_failed(
-                "subject",
-                "subject must not end with a period",
-            ),
+            DraftValidationError::SubjectTrailingPeriod => {
+                OutputValidationError::field_failed("subject", "subject must not end with a period")
+            }
             DraftValidationError::BadScope(scope) => OutputValidationError::field_failed(
                 "scope",
                 format!("scope must be lowercase-hyphen, got {scope:?}"),
@@ -326,8 +355,8 @@ mod tests {
         }
     }
 
-    fn ctx() -> Arc<RepoCtx> {
-        Arc::new(RepoCtx::new(PathBuf::from("/repo/api"), "api"))
+    fn ctx() -> RepoCtx {
+        RepoCtx::new(PathBuf::from("/repo/api"), "api")
     }
 
     fn settings() -> AiSettings {
@@ -399,7 +428,7 @@ mod tests {
         let error = generate_for_repo(DraftRequest {
             settings: &settings(),
             credential: None,
-            ctx: ctx(),
+            ctx: Arc::new(ctx()),
             change_detail: &detail("diff"),
         })
         .await
@@ -415,18 +444,61 @@ mod tests {
 
     #[tokio::test]
     async fn parses_a_structured_answer_from_a_stub_model() {
-        let model = serdes_ai::models::FunctionModel::new(|_requests, _settings: &ModelSettings| {
-            ModelResponse::text(
-                r#"{"type":"feat","scope":"api","subject":"add the help command","body":null}"#,
-            )
-        });
-        let agent = AgentBuilder::<Arc<RepoCtx>, String>::new(model)
+        let model =
+            serdes_ai::models::FunctionModel::new(|_requests, _settings: &ModelSettings| {
+                ModelResponse::text(
+                    r#"{"type":"feat","scope":"api","subject":"add the help command","body":null}"#,
+                )
+            });
+        let agent = AgentBuilder::<RepoCtx, String>::new(model)
             .system_prompt("stub")
             .output_type::<CommitDraft>()
             .build();
 
         let result = agent.run("diff", ctx()).await.expect("stub run");
-        assert_eq!(result.into_output().render(), "feat(api): add the help command");
+        assert_eq!(
+            result.into_output().render(),
+            "feat(api): add the help command"
+        );
+    }
+
+    /// Manual gate: `OPENAI_API_KEY=… cargo test --all-features -- --ignored`.
+    #[tokio::test]
+    #[ignore = "live provider: needs OPENAI_API_KEY (and optionally REPOMAN_LIVE_BASE_URL / REPOMAN_LIVE_MODEL)"]
+    async fn live_provider_returns_a_schema_valid_draft() {
+        let Some(credential) = std::env::var("OPENAI_API_KEY")
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+        else {
+            return;
+        };
+
+        let settings = AiSettings {
+            base_url: std::env::var("REPOMAN_LIVE_BASE_URL")
+                .unwrap_or_else(|_| "https://api.openai.com/v1".to_string()),
+            model: std::env::var("REPOMAN_LIVE_MODEL")
+                .unwrap_or_else(|_| "gpt-4o-mini".to_string()),
+            api_key_env: "OPENAI_API_KEY".to_string(),
+            max_tool_calls: 4,
+            diff_budget_chars: 4_000,
+        };
+        let change =
+            detail("--- composer.json ---\n- \"foo/bar\": \"^1.0\"\n+ \"foo/bar\": \"^1.2\"\n");
+        let ctx = Arc::new(RepoCtx::new(PathBuf::from("/tmp/live-repo"), "live-repo"));
+
+        let draft = generate_for_repo(DraftRequest {
+            settings: &settings,
+            credential: Some(credential),
+            ctx,
+            change_detail: &change,
+        })
+        .await
+        .expect("live draft");
+
+        assert!(!draft.commit_type.trim().is_empty());
+        assert!(!draft.subject.trim().is_empty());
+        assert!(draft.subject.chars().count() <= crate::commitgen::draft::MAX_SUBJECT_CHARS);
     }
 
     #[tokio::test]
@@ -444,18 +516,25 @@ mod tests {
                 ModelResponse::text(r#"{"type":"fix","subject":"repair the thing"}"#)
             }
         });
-        let agent = AgentBuilder::<Arc<RepoCtx>, String>::new(model)
+        let agent = AgentBuilder::<RepoCtx, String>::new(model)
             .system_prompt("stub")
             .output_type::<CommitDraft>()
-            .output_validator_fn(|draft: CommitDraft, _ctx: &RunContext<Arc<RepoCtx>>| {
+            .output_validator_fn(|draft: CommitDraft, _ctx: &RunContext<RepoCtx>| {
                 validate_draft(draft, 12)
             })
             .max_output_retries(2)
             .build();
 
-        let result = agent.run("diff", ctx()).await.expect("second answer is valid");
+        let result = agent
+            .run("diff", ctx())
+            .await
+            .expect("second answer is valid");
         assert_eq!(result.into_output().render(), "fix: repair the thing");
-        assert_eq!(attempts.load(Ordering::SeqCst), 2, "the model was re-asked once");
+        assert_eq!(
+            attempts.load(Ordering::SeqCst),
+            2,
+            "the model was re-asked once"
+        );
     }
 
     #[test]
@@ -469,7 +548,10 @@ mod tests {
             CommitGenError::EmptyResult
         );
         let provider = map_run_error(AgentRunError::Provider("offline".into()));
-        assert_eq!(provider.into_error(), CommitGenError::Model("Provider error: offline".into()));
+        assert_eq!(
+            provider.into_error(),
+            CommitGenError::Model("Provider error: offline".into())
+        );
     }
 
     #[test]

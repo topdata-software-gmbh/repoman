@@ -23,6 +23,7 @@ pub trait CommitGenObserver: Send + Sync {
 }
 
 /// No-op observer for unit tests and callers that ignore the stream.
+#[allow(dead_code)]
 pub struct NullCommitGenObserver;
 
 impl CommitGenObserver for NullCommitGenObserver {

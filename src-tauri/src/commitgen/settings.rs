@@ -103,7 +103,9 @@ mod tests {
 
     #[test]
     fn serializes_back_as_camel_case() {
-        let settings = from_json(r#"{"baseUrl":"http://h/v1","model":"m","apiKeyEnv":"K","maxToolCalls":5,"diffBudgetChars":7}"#);
+        let settings = from_json(
+            r#"{"baseUrl":"http://h/v1","model":"m","apiKeyEnv":"K","maxToolCalls":5,"diffBudgetChars":7}"#,
+        );
         let json = serde_json::to_string(&settings).unwrap();
         assert!(json.contains("\"apiKeyEnv\":\"K\""), "{json}");
         assert!(json.contains("\"maxToolCalls\":5"), "{json}");
@@ -112,9 +114,11 @@ mod tests {
 
     #[test]
     fn accepts_http_and_https_base_urls() {
-        assert!(from_json(r#"{"baseUrl":"http://localhost:11434/v1","model":"m"}"#)
-            .validate()
-            .is_ok());
+        assert!(
+            from_json(r#"{"baseUrl":"http://localhost:11434/v1","model":"m"}"#)
+                .validate()
+                .is_ok()
+        );
         assert!(
             from_json(r#"{"baseUrl":"https://openrouter.ai/api/v1","model":"m"}"#)
                 .validate()
@@ -170,7 +174,9 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.json");
         std::fs::write(&path, r#"{"scanPaths":[],"groups":[]}"#).unwrap();
-        let config = crate::config::ConfigManager::from_path(path).snapshot().unwrap();
+        let config = crate::config::ConfigManager::from_path(path)
+            .snapshot()
+            .unwrap();
         assert!(config.ai.is_none());
     }
 }

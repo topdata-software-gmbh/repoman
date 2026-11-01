@@ -200,6 +200,47 @@ describe('SaveChangesModal per-repo rows (US1)', () => {
     expect(store.saveModalOpen).toBe(false);
   });
 
+  it('disables generation with a not-configured hint when ai is absent (SC-005)', async () => {
+    store.config = { ...store.config, ai: null };
+    await mounted();
+
+    const generateButton = buttonByText('Suggest with AI');
+    expect(generateButton?.disabled).toBe(true);
+    expect(document.body.textContent).toContain('AI is not set up yet');
+
+    // Manual commit stays byte-identical to today's flow.
+    const areas = textareas();
+    await typeInto(areas[0]!, 'feat: manual alpha');
+    await typeInto(areas[1]!, 'fix: manual beta');
+    await buttonByText('Save to Git')?.click();
+    await flushPromises();
+
+    expect(commitRepoChanges).toHaveBeenCalledWith(PATH_A, 'feat: manual alpha');
+    expect(commitRepoChanges).toHaveBeenCalledWith(PATH_B, 'fix: manual beta');
+  });
+
+  it('shows the bad-config hint when the ai block is invalid (T046)', async () => {
+    store.config = {
+      ...store.config,
+      ai: {
+        baseUrl: 'not-a-url',
+        model: 'test-model',
+        apiKeyEnv: 'OPENAI_API_KEY',
+        maxToolCalls: 12,
+        diffBudgetChars: 40000,
+      },
+    };
+    await mounted();
+
+    expect(buttonByText('Suggest with AI')?.disabled).toBe(true);
+    expect(document.body.textContent).toContain('The AI settings are incomplete');
+  });
+
+  it('enables generation when ai is configured (T046)', async () => {
+    await mounted();
+    expect(buttonByText('Suggest with AI')?.disabled).toBe(false);
+  });
+
   it('generation alone never commits (US1-AC4)', async () => {
     await mounted();
 

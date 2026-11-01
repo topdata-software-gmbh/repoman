@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- AI commit-message drafts in **Save to Git**: one Conventional Commit suggestion
+  per selected project, streamed live (`commitgen:repo` / SSE `commitgen-repo`),
+  editable per row, with isolated per-project failures and single-row retry.
+  Generation only reads repositories; nothing is committed until you save.
+- Optional `ai` configuration block (`baseUrl`, `model`, `apiKeyEnv`,
+  `maxToolCalls`, `diffBudgetChars`). The key is read from the named environment
+  variable and never persisted, logged, or sent to the browser.
+- Bounded read-only inspection tools (`read_file`, `file_at_head`,
+  `recent_history`, `grep`) sandboxed to each repository, with a per-run lookup
+  budget.
+- `generate_commit_messages` Tauri command and
+  `POST /api/repositories/generate-commit-messages` (202 + `runId`), backed by
+  the git-pinned `serdes-ai` framework confined to `src-tauri/src/commitgen/`.
 - German UI with an English fallback and a sidebar language switcher. The choice
   is stored under `topdata.language.v1` and applied to `<html lang>`.
 - App-owned typed translation catalogues (`src/lib/i18n/`) with `t()` and
@@ -36,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The Save dialog now commits each project with its own message instead of one
+  shared message; typing manually behaves exactly as before.
 - Renamed the project and CLI from `git-repo-manager` to `repoman`: the installed
   command and Rust package are now `repoman`, the desktop product is `RepoMan`
   (`com.topdata.repoman`), configuration moved to `~/.config/repoman/config.json`,

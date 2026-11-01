@@ -98,7 +98,9 @@ impl CommitDraft {
             return Err(DraftValidationError::EmptySubject);
         }
         if subject.chars().count() > MAX_SUBJECT_CHARS {
-            return Err(DraftValidationError::SubjectTooLong(subject.chars().count()));
+            return Err(DraftValidationError::SubjectTooLong(
+                subject.chars().count(),
+            ));
         }
         if subject.ends_with('.') {
             return Err(DraftValidationError::SubjectTrailingPeriod);
@@ -155,7 +157,8 @@ impl CommitDraft {
 }
 
 impl CommitDraftWire {
-    /// Round-trips back into the typed draft.
+    /// Round-trips back into the typed draft (tests only).
+    #[cfg(test)]
     pub fn to_draft(&self) -> CommitDraft {
         CommitDraft {
             commit_type: self.commit_type.clone(),
@@ -254,7 +257,10 @@ mod tests {
             draft("feat", Some("modal"), "add AI commit message generation").render(),
             "feat(modal): add AI commit message generation"
         );
-        assert_eq!(draft("fix", None, "avoid crash").render(), "fix: avoid crash");
+        assert_eq!(
+            draft("fix", None, "avoid crash").render(),
+            "fix: avoid crash"
+        );
 
         let with_body = CommitDraft {
             body: Some("  Because the modal lost drafts.  ".to_string()),
@@ -268,7 +274,9 @@ mod tests {
 
     #[test]
     fn wire_form_carries_the_rendered_text_and_uses_type_key() {
-        let wire = draft("chore", Some("ci"), "pin serdesai").normalized().to_wire();
+        let wire = draft("chore", Some("ci"), "pin serdesai")
+            .normalized()
+            .to_wire();
         let json = serde_json::to_value(&wire).unwrap();
         assert_eq!(json["type"], "chore");
         assert_eq!(json["scope"], "ci");
@@ -295,7 +303,10 @@ mod tests {
     fn schema_hint_lists_the_enum_and_the_limit() {
         let schema = CommitDraft::json_schema_hint();
         assert_eq!(
-            schema["properties"]["type"]["enum"].as_array().unwrap().len(),
+            schema["properties"]["type"]["enum"]
+                .as_array()
+                .unwrap()
+                .len(),
             11
         );
         assert_eq!(schema["properties"]["subject"]["maxLength"], 72);

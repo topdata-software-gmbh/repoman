@@ -9,9 +9,10 @@ pub mod agent;
 pub mod diff;
 pub mod draft;
 pub mod settings;
+pub mod tools;
 
 pub use agent::{CommitGenError, RepoCtx};
-pub use diff::{collect_change_detail, ChangeDetail};
+pub use diff::collect_change_detail;
 pub use draft::{CommitDraft, CommitDraftWire};
 pub use settings::AiSettings;
 
@@ -152,28 +153,6 @@ async fn run_batch_with<F, Fut>(
     }
 }
 
-/// One repository: change detail → agent → typed draft.
-async fn summarize_one(
-    path: &str,
-    settings: &AiSettings,
-    credential: Option<String>,
-) -> Result<CommitDraft, CommitGenError> {
-    let repo_path = Path::new(path);
-    let detail = collect_change_detail(repo_path, settings.diff_budget_chars).await?;
-    let ctx = Arc::new(RepoCtx::new(
-        repo_path.to_path_buf(),
-        repo_name_of(repo_path),
-    ));
-
-    agent::generate_for_repo(agent::DraftRequest {
-        settings,
-        credential,
-        ctx,
-        change_detail: &detail,
-    })
-    .await
-}
-
 fn repo_name_of(path: &Path) -> String {
     path.file_name()
         .map(|name| name.to_string_lossy().to_string())
@@ -203,9 +182,16 @@ pub const TRUNCATION_MARKER: &str = "[... truncated ...]";
 /// Payload is identical on both transports; `draft` carries the backend-rendered
 /// string so DE/EN and trimming edge cases never diverge (contracts/commitgen-events.md).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase", tag = "phase", rename_all_fields = "camelCase")]
+#[serde(
+    rename_all = "camelCase",
+    tag = "phase",
+    rename_all_fields = "camelCase"
+)]
 pub enum CommitGenEvent {
-    Started { run_id: String, path: String },
+    Started {
+        run_id: String,
+        path: String,
+    },
     Done {
         run_id: String,
         path: String,
@@ -245,9 +231,7 @@ impl CommitGenEvent {
     /// Repo this event belongs to — the store keys solely on `path` (contracts §C3 rule 4).
     pub fn path(&self) -> &str {
         match self {
-            Self::Started { path, .. }
-            | Self::Done { path, .. }
-            | Self::Error { path, .. } => path,
+            Self::Started { path, .. } | Self::Done { path, .. } | Self::Error { path, .. } => path,
         }
     }
 
@@ -294,7 +278,10 @@ mod tests {
         let done = serde_json::to_value(CommitGenEvent::done("r1", "/repo/a", draft())).unwrap();
         assert_eq!(done["phase"], "done");
         assert_eq!(done["runId"], "r1");
-        assert_eq!(done["draft"]["rendered"], "feat(modal): add AI commit message generation");
+        assert_eq!(
+            done["draft"]["rendered"],
+            "feat(modal): add AI commit message generation"
+        );
         assert!(done.get("error").is_none(), "{done}");
 
         let error = serde_json::to_value(CommitGenEvent::error("r1", "/repo/a", "boom")).unwrap();
@@ -340,12 +327,9 @@ mod tests {
         let observer = Arc::new(CollectingObserver::default());
         let paths: Vec<String> = (0..4).map(|i| format!("/repo/{i}")).collect();
 
-        run_batch_with(
-            "run-1",
-            &paths,
-            observer.clone(),
-            |_path| async { Ok::<_, CommitGenError>(sample_draft()) },
-        )
+        run_batch_with("run-1", &paths, observer.clone(), |_path| async {
+            Ok::<_, CommitGenError>(sample_draft())
+        })
         .await;
 
         let phases = observer.phases();
@@ -452,6 +436,135 @@ mod tests {
             other => panic!("expected an error event, got {other:?}"),
         };
         assert!(reason.contains("offline"), "{reason}");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn retry_emits_one_pair_for_the_failed_path_and_nothing_else() {
+        let observer = Arc::new(CollectingObserver::default());
+        let paths = vec!["/repo/a".to_string(), "/repo/b".to_string()];
+
+        run_batch_with("run-r", &paths, observer.clone(), |_path| async {
+            Ok::<_, CommitGenError>(sample_draft())
+        })
+        .await;
+        observer.events.lock().unwrap().clear();
+
+        run_batch_with(
+            "run-r",
+            &["/repo/b".to_string()],
+            observer.clone(),
+            |_path| async { Ok::<_, CommitGenError>(sample_draft()) },
+        )
+        .await;
+
+        let phases = observer.phases();
+        assert_eq!(
+            phases,
+            vec![
+                ("started".to_string(), "/repo/b".to_string()),
+                ("done".to_string(), "/repo/b".to_string()),
+            ],
+            "retry must touch only its own path (FR-015)"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn retry_repo_reuses_the_caller_run_id() {
+        let observer = Arc::new(CollectingObserver::default());
+        let settings = AiSettings {
+            base_url: "http://localhost:11434/v1".to_string(),
+            model: "test-model".to_string(),
+            api_key_env: "REPOMAN_TEST_MISSING_KEY_XYZ".to_string(),
+            max_tool_calls: 12,
+            diff_budget_chars: 40_000,
+        };
+
+        retry_repo(
+            "/tmp/repoman-not-a-repository-xyz",
+            "run-shared",
+            &settings,
+            observer.clone(),
+        );
+
+        let mut waited = std::time::Duration::ZERO;
+        while observer.events.lock().unwrap().len() < 2
+            && waited < std::time::Duration::from_secs(5)
+        {
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            waited += std::time::Duration::from_millis(20);
+        }
+
+        let events = observer.events.lock().unwrap().clone();
+        assert_eq!(events.len(), 2, "{events:?}");
+        assert_eq!(events[0].phase_tag(), "started");
+        assert_eq!(events[1].phase_tag(), "error");
+        assert!(events.iter().all(|event| event.run_id() == "run-shared"));
+    }
+
+    fn git(repo: &std::path::Path, args: &[&str]) -> String {
+        let output = std::process::Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .output()
+            .expect("git available");
+        assert!(output.status.success(), "git {args:?} failed");
+        String::from_utf8_lossy(&output.stdout).to_string()
+    }
+
+    fn dirty_repo() -> (tempfile::TempDir, String) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("repo");
+        std::fs::create_dir_all(&path).expect("repo dir");
+        git(&path, &["init", "-q"]);
+        git(&path, &["config", "user.email", "test@example.com"]);
+        git(&path, &["config", "user.name", "Test"]);
+        std::fs::write(path.join("README.md"), "hello\n").expect("write");
+        git(&path, &["add", "."]);
+        git(&path, &["commit", "-q", "-m", "feat: initial"]);
+        std::fs::write(path.join("README.md"), "hello world\n").expect("write change");
+        (dir, path.to_string_lossy().to_string())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_missing_credential_errors_every_row_and_never_writes() {
+        let (_dir_a, repo_a) = dirty_repo();
+        let (_dir_b, repo_b) = dirty_repo();
+        let status_before = git(std::path::Path::new(&repo_a), &["status", "--porcelain"]);
+
+        let observer = Arc::new(CollectingObserver::default());
+        let settings = AiSettings {
+            base_url: "http://localhost:11434/v1".to_string(),
+            model: "test-model".to_string(),
+            api_key_env: "REPOMAN_TEST_UNSET_KEY_ABC".to_string(),
+            max_tool_calls: 12,
+            diff_budget_chars: 40_000,
+        };
+        let paths = vec![repo_a.clone(), repo_b.clone()];
+
+        run_batch("run-missing", &paths, &settings, observer.clone()).await;
+
+        let events = observer.events.lock().unwrap().clone();
+        assert_eq!(events.len(), 4, "started + error for every row");
+        assert!(events[..2]
+            .iter()
+            .all(|event| event.phase_tag() == "started"));
+        for event in &events[2..] {
+            let reason = match event {
+                CommitGenEvent::Error { error, .. } => error.clone(),
+                other => panic!("expected error, got {other:?}"),
+            };
+            assert!(
+                reason.contains("missing-credential:REPOMAN_TEST_UNSET_KEY_ABC"),
+                "{reason}"
+            );
+            assert!(!reason.contains("sk-"), "no secret material in reasons");
+        }
+        assert!(events.iter().all(|event| event.run_id() == "run-missing"));
+
+        // Principle V / SC-002: generation only must not touch the work tree.
+        let status_after = git(std::path::Path::new(&repo_a), &["status", "--porcelain"]);
+        assert_eq!(status_before, status_after);
     }
 
     #[test]

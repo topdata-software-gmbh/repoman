@@ -45,6 +45,13 @@ pub async fn collect_change_detail(
     repo_path: &Path,
     diff_budget_chars: usize,
 ) -> Result<ChangeDetail, ChangeDetailError> {
+    if !GitRunner::resolve_git_dir(repo_path).exists() {
+        return Err(ChangeDetailError::Unavailable(format!(
+            "{} is not a readable git repository",
+            repo_path.display()
+        )));
+    }
+
     if GitRunner::has_conflicts(repo_path).await {
         return Err(ChangeDetailError::Conflicts);
     }
@@ -66,10 +73,7 @@ pub async fn collect_change_detail(
     if !untracked.is_empty() {
         body.push_str("\n## Untracked files\n\n");
         for path in &untracked {
-            let content = read_head_lines(
-                &repo_path.join(path),
-                MAX_UNTRACKED_LINES_PER_FILE,
-            );
+            let content = read_head_lines(&repo_path.join(path), MAX_UNTRACKED_LINES_PER_FILE);
             body.push_str(&format!("--- new file: {path} ---\n"));
             match content {
                 Some(lines) => {
@@ -107,7 +111,10 @@ pub fn truncate(body: &str, budget: usize) -> (String, bool) {
     }
     let keep = budget - marker_chars - 1; // one newline separates content from marker
     let head: String = body.chars().take(keep).collect();
-    (format!("{}\n{}", head.trim_end(), super::TRUNCATION_MARKER), true)
+    (
+        format!("{}\n{}", head.trim_end(), super::TRUNCATION_MARKER),
+        true,
+    )
 }
 
 fn read_head_lines(path: &Path, max_lines: usize) -> Option<String> {
@@ -163,7 +170,11 @@ mod tests {
         let (payload, truncated) = truncate(&body, 100);
         assert!(truncated);
         assert!(payload.ends_with(super::super::TRUNCATION_MARKER));
-        assert!(payload.chars().count() <= 100, "{}", payload.chars().count());
+        assert!(
+            payload.chars().count() <= 100,
+            "{}",
+            payload.chars().count()
+        );
 
         let (tiny, _) = truncate(&body, 5);
         assert!(tiny.chars().count() <= 5, "{tiny}");
@@ -182,7 +193,10 @@ mod tests {
         assert!(detail.prompt.contains("notes.txt"));
         assert!(!detail.truncated);
         assert_eq!(detail.untracked_count, 1);
-        assert_eq!(detail.style_subjects, vec!["feat: add the tracked file".to_string()]);
+        assert_eq!(
+            detail.style_subjects,
+            vec!["feat: add the tracked file".to_string()]
+        );
     }
 
     #[tokio::test]
@@ -248,7 +262,10 @@ mod tests {
     async fn style_subjects_are_capped_at_ten() {
         let (_guard, path) = repo_with_commit();
         for i in 0..15 {
-            git(&path, &["commit", "--allow-empty", "-m", &format!("chore: seed {i}")]);
+            git(
+                &path,
+                &["commit", "--allow-empty", "-m", &format!("chore: seed {i}")],
+            );
         }
         let subjects = GitRunner::recent_subjects(&path, STYLE_SUBJECT_COUNT).await;
         assert_eq!(subjects.len(), 10);
