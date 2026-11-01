@@ -56,7 +56,9 @@ user's SSH agent, credential helpers, and GPG signing configuration.
    scans it deeply, and proposes groups for you to confirm.
 2. Edit your files normally in your editor. Use **All repos** to browse and filter
    everything; open a group when you want to act on several projects at once.
-3. Click **Save to Git** at a checkpoint and describe what changed.
+3. Click **Save to Git** at a checkpoint and describe what changed. You can write
+   the message yourself, or click **✨ Suggest with AI** to draft one message per
+   project, review and edit each row, and then save.
 4. Click **Get latest** before starting work and **Send changes** when finished.
 5. Use **How this works** in the app for a plain-English glossary and recovery
    guidance.
@@ -67,6 +69,42 @@ computer and resumed next time.
 
 The group toolbar wires the common actions; fetch, stash, and stash pop live under
 the **More** menu. The **All repos** page has no bulk actions.
+
+### AI commit messages
+
+**Save to Git** can draft one Conventional Commit message per selected project
+from that project's own pending changes. Drafts appear as editable rows, one per
+project, and nothing is committed until you click **Save to Git** — generation
+only reads the repository.
+
+The AI is optional. Without an `ai` block in the configuration the button stays
+disabled and the dialog works exactly as before.
+
+```json
+"ai": {
+  "baseUrl": "http://localhost:11434/v1",
+  "model": "gpt-4o-mini",
+  "apiKeyEnv": "OPENAI_API_KEY",
+  "maxToolCalls": 12,
+  "diffBudgetChars": 40000
+}
+```
+
+- `baseUrl` / `model` point at any OpenAI-compatible endpoint.
+- `apiKeyEnv` is the **name** of the environment variable that holds the key; the
+  key itself is never written to the config, an event, or a log line. In web
+  server mode the variable is read from the **repoman server process**, not the
+  browser.
+- `maxToolCalls` bounds read-only repository lookups per project (files, HEAD
+  content, recent subjects, text search); the generator answers from the change
+  detail when the budget is spent.
+- `diffBudgetChars` caps the change detail sent to the model; larger change sets
+  are truncated instead of failing.
+
+Failures are per project: an unreachable endpoint, a missing key, an empty
+answer, or merge conflicts only mark that row, with a retry button (except for
+"nothing to save" and merge conflicts, which need a human first). Typing your own
+message into a failed row always works.
 
 ### What Git did
 
@@ -308,12 +346,20 @@ Example:
     "ownerNames": ["acme"],
     "groupingStyle": "topLevel",
     "selectedRepoPaths": ["/srv/projects/api", "/srv/projects/worker"]
+  },
+  "ai": {
+    "baseUrl": "http://localhost:11434/v1",
+    "model": "gpt-4o-mini",
+    "apiKeyEnv": "OPENAI_API_KEY",
+    "maxToolCalls": 12,
+    "diffBudgetChars": 40000
   }
 }
 ```
 
-Older config files without the `onboarding` block keep working; the field is
-additive and defaults to a fresh, incomplete setup.
+Older config files without the `onboarding` or `ai` blocks keep working; both
+fields are additive. The `ai` block stores only the environment-variable **name**
+of the key, never the key itself.
 
 Repository state itself is never persisted; it is read from Git on demand.
 
@@ -396,3 +442,7 @@ scripts/install.sh       Build and install the release binary
   memory. Prefer long random values (the auto-generated token is 64 hex chars).
 - The API can run Git operations with the server user's credentials; treat the
   token like an SSH key.
+- AI drafts are generated from a bounded, read-only change detail. Lookup tools
+  are sandboxed to each project folder; paths outside it are refused. The model
+  credential stays in the repoman process environment and never reaches the
+  browser, the config file, events, or logs.
