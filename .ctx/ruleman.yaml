@@ -4,6 +4,7 @@ technologies:
   rust: {}
   tauri: {}
   typescript: {}
+  ui: {}
   vue: {}
 export:
   format: markdown
