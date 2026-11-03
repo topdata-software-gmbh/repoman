@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deployment &amp; release process</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600&family=PT+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../node_modules/@topdata-software-gmbh/design-tokens/dist/tokens.css">
+<script>try{var _st=localStorage.getItem("td-doc-theme")}catch(_e){_st=null}document.documentElement.dataset.theme=_st||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light")</script>
+<style>
+:root{
+  --node-core-bg:color-mix(in srgb,var(--td-color-primary) 12%,var(--td-color-surface-raised));
+  --node-core-title:color-mix(in srgb,var(--td-color-primary) 65%,var(--td-color-fg));
+  --node-core-sub:var(--td-color-fg-muted);
+  --node-opt-bg:color-mix(in srgb,var(--td-color-accent) 12%,var(--td-color-surface-raised));
+  --node-opt-title:color-mix(in srgb,var(--td-color-accent) 70%,var(--td-color-fg));
+  --node-opt-sub:color-mix(in srgb,var(--td-color-accent) 55%,var(--td-color-fg-muted));
+  --mono:var(--td-font-mono)
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--td-color-canvas);color:var(--td-color-fg);font:var(--td-text-base)/var(--td-leading-relaxed) var(--td-font-body)}
+.wrap{max-width:840px;margin:0 auto;padding:var(--td-space-7) var(--td-space-5) var(--td-space-8)}
+h1{font:var(--td-weight-semibold) var(--td-text-2xl)/var(--td-leading-tight) var(--td-font-heading);margin:0}
+.sub{color:var(--td-color-fg-muted);margin:var(--td-space-2) 0 var(--td-space-4)}
+.bar{display:flex;flex-wrap:wrap;gap:var(--td-space-3);align-items:center;margin-bottom:var(--td-space-3)}
+.top{display:flex;align-items:flex-start;gap:var(--td-space-3);flex-wrap:wrap}
+.top h1{flex:1;min-width:260px}
+#bar-r{margin-bottom:2px}
+.tog{display:inline-flex;align-items:center;gap:var(--td-space-2);color:var(--td-color-fg-muted);font-size:var(--td-text-sm);cursor:pointer;user-select:none}
+.tog:hover{color:var(--td-color-fg)}
+.tog input{width:16px;height:16px;margin:0;flex:none;accent-color:var(--td-color-primary);cursor:pointer}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--td-color-border);border-radius:var(--td-radius-md);background:var(--td-color-surface);color:var(--td-color-fg);padding:var(--td-space-2) 14px;font:var(--td-weight-semibold) var(--td-text-sm)/var(--td-leading-tight) var(--td-font-body);cursor:pointer;transition:background-color var(--td-motion-fast) var(--td-ease-standard),border-color var(--td-motion-fast) var(--td-ease-standard),color var(--td-motion-fast) var(--td-ease-standard)}
+.btn:hover:not(:disabled){background:var(--td-color-surface-hover);border-color:var(--td-color-border-strong)}
+.btn.fill{background:var(--td-color-primary);border-color:var(--td-color-primary);color:var(--td-color-on-primary)}
+.btn.fill:hover:not(:disabled){background:var(--td-color-primary-hover);border-color:var(--td-color-primary-hover)}
+.btn:disabled{background:var(--td-color-disabled);border-color:transparent;color:var(--td-color-disabled-fg);cursor:not-allowed}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--td-color-fg-muted)}
+.btn.ghost:hover:not(:disabled){background:var(--td-color-surface-hover);color:var(--td-color-fg)}
+#pause,#stop{padding:var(--td-space-2) 12px}
+#theme{padding:var(--td-space-2) 10px}
+.seg{display:flex;gap:var(--td-space-1)}
+.seg button{border:1px solid var(--td-color-border);border-radius:var(--td-radius-full);background:var(--td-color-surface);color:var(--td-color-fg-muted);padding:5px 11px;font:var(--td-weight-semibold) var(--td-text-xs)/var(--td-leading-tight) var(--mono);letter-spacing:.04em;cursor:pointer;transition:background-color var(--td-motion-fast) var(--td-ease-standard),border-color var(--td-motion-fast) var(--td-ease-standard),color var(--td-motion-fast) var(--td-ease-standard)}
+.seg button:hover{background:var(--td-color-surface-hover);color:var(--td-color-fg)}
+.seg button[aria-pressed=true]{border-color:var(--td-color-primary);background:color-mix(in srgb,var(--td-color-primary) 18%,transparent);color:var(--node-core-title)}
+[hidden]{display:none!important}
+.card{background:var(--td-color-surface);border:1px solid var(--td-color-border);border-radius:var(--td-radius-lg);padding:var(--td-space-2) var(--td-space-1);box-shadow:var(--td-shadow-sm)}
+svg{display:block;width:100%;height:auto}
+.node{cursor:pointer;outline:none}
+.node rect{stroke-width:1;transition:stroke-width var(--td-motion-fast)}
+.node.core rect{fill:var(--node-core-bg);stroke:var(--td-color-primary)}
+.node.opt rect{fill:var(--node-opt-bg);stroke:var(--td-color-accent);stroke-dasharray:4 3}
+.node .th{font-family:var(--td-font-heading);font-size:15px;font-weight:var(--td-weight-semibold);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.node .ts{font-size:12.5px;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.node.core .th{fill:var(--node-core-title)}.node.core .ts{fill:var(--node-core-sub)}
+.node.opt .th{fill:var(--node-opt-title)}.node.opt .ts{fill:var(--node-opt-sub)}
+.node:hover rect,.node:focus-visible rect{stroke-width:2.5}
+.node:focus-visible rect{stroke:var(--td-color-focus)}
+.node.active rect{stroke:var(--td-color-warning);stroke-width:3.5}
+.link{fill:none;stroke:var(--td-color-fg-muted);stroke-width:1.5;transition:opacity var(--td-motion-base)}
+.link.dash{stroke-dasharray:5 4}
+.dim{opacity:.25}
+.leg{font-size:12.5px;fill:var(--td-color-fg-muted);dominant-baseline:central}
+.cap{min-height:5.2em;margin-top:var(--td-space-4)}
+.cap b{display:block}
+.cap span{color:var(--td-color-fg-muted);font-size:var(--td-text-sm)}
+.files{display:flex;flex-wrap:wrap;gap:6px;margin-top:var(--td-space-2);min-height:30px}
+.chip{background:var(--node-core-bg);color:var(--node-core-title);border-radius:var(--td-radius-sm);padding:2px 10px;font-family:var(--mono);font-size:.82rem}
+.back{position:fixed;inset:0;background:var(--td-color-overlay);display:none;align-items:center;justify-content:center;padding:var(--td-space-4);z-index:10}
+.back.open{display:flex}
+.modal{background:var(--td-color-surface);color:var(--td-color-fg);border:1px solid var(--td-color-border);border-radius:var(--td-radius-lg);max-width:620px;width:100%;max-height:90vh;overflow:auto;padding:var(--td-space-6)}
+.modal h2{font-family:var(--td-font-heading);font-size:var(--td-text-2xl);font-weight:var(--td-weight-semibold);line-height:var(--td-leading-tight);margin:0}
+.modal .cmd{display:block;color:var(--node-core-title);margin:2px 0 10px;font-family:var(--mono)}
+.modal h3{font-size:var(--td-text-base);margin:var(--td-space-4) 0 4px}
+.modal ul{margin:4px 0 0;padding-left:20px}
+.modal p{margin:6px 0}
+.tip{background:var(--td-color-warning-soft);border-left:4px solid var(--td-color-warning);padding:var(--td-space-2) 12px;margin-top:14px}
+.modal pre{background:var(--td-color-canvas);border:1px solid var(--td-color-border);border-radius:var(--td-radius-md);padding:10px 12px;white-space:pre-wrap;margin:6px 0 0;font-family:var(--mono);font-size:var(--td-text-sm)}
+.row{display:flex;gap:var(--td-space-2);margin-top:var(--td-space-5);flex-wrap:wrap}.row .sp{flex:1}
+button:focus-visible,input:focus-visible{outline:2px solid var(--td-color-focus);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){.modal{animation:pop var(--td-motion-fast) ease-out}@keyframes pop{from{transform:scale(.97);opacity:.6}}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="top">
+<h1 id="h1">Deployment &amp; release process</h1>
+<div class="bar" id="bar-r">
+<div class="seg" id="seg"><button id="lang-en" aria-pressed="true" aria-label="English">EN</button><button id="lang-de" aria-pressed="false" aria-label="Deutsch">DE</button></div>
+<button class="btn" id="theme" aria-label="Switch color theme"></button>
+</div>
+</div>
+<p class="sub" id="sub">Click any step for details. Hover to trace its connections. Press Walk through to follow a binary from build to client.</p>
+<div class="bar">
+<label class="tog"><input type="checkbox" id="t-dryrun" checked> <span id="l-dryrun">Include dry-run preview</span></label>
+<label class="tog"><input type="checkbox" id="t-verify" checked> <span id="l-verify">Include verification</span></label>
+<button class="btn fill" id="walk">Walk through</button>
+<button class="btn" id="pause" hidden>⏸</button>
+<button class="btn" id="stop" hidden>■</button>
+</div>
+<div class="card"><svg id="svg" viewBox="0 0 740 810" role="img" aria-label="Deployment and release process: bump version, build, package, read store, merge metadata, upload artifact, manifest and catalog, verify, then client update"></svg></div>
+<div class="cap" id="cap" aria-live="polite"><span>Select a step, or start the walkthrough.</span></div>
+<div class="files" id="files"></div>
+</div>
+
+<div class="back" id="back"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title" id="modal">
+<h2 id="m-title"></h2><code class="cmd" id="m-cmd"></code><div id="m-body"></div>
+<div class="row"><button class="btn" id="m-prev">Previous</button><button class="btn" id="m-next">Next</button><span class="sp"></span><button class="btn" id="m-copy">Copy example command</button><button class="btn fill" id="m-close">Close</button></div>
+</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+const N=[
+{id:"prepare",t:"Bump version",x:70,y:20,w:260,h:56},
+{id:"build",t:"Build binary",x:70,y:104,w:260,h:56},
+{id:"package",t:"Package artifact",x:70,y:188,w:260,h:56},
+{id:"read",t:"Read store",x:70,y:272,w:260,h:56},
+{id:"merge",t:"Merge metadata",x:70,y:356,w:260,h:56},
+{id:"dryrun",opt:1,t:"Preview (dry run)",x:400,y:356,w:250,h:56},
+{id:"upload-artifact",t:"Upload artifact",x:70,y:440,w:260,h:56},
+{id:"upload-manifest",t:"Upload manifest",x:70,y:524,w:260,h:56},
+{id:"upload-catalog",t:"Upload catalog",x:70,y:608,w:260,h:56},
+{id:"verify",opt:1,t:"Verify read",x:400,y:608,w:250,h:56},
+{id:"client",t:"Client update",x:70,y:692,w:260,h:56}];
+const TXT={
+en:{
+prepare:{s:"Version + changelog",out:"release version + changelog entry",
+ what:"Choose the release version and record what changed. For RepoMan the version lives in package.json, src-tauri/tauri.conf.json and src-tauri/Cargo.toml; topbox uses Cargo.toml.",
+ list:["Keep all version files aligned; ./scripts/deploy.sh checks they agree.","Add a user-facing entry to CHANGELOG.md before building.","Release from a clean tree so the artifact matches a known commit."],
+ tip:"The wrapper bumps the patch version automatically. The bump stays in the working tree so you can review, commit and tag it after a successful publish.",
+ ex:"./scripts/deploy.sh 0.2.0 --ssh-host root@arm2.srv.topinfra.de --ssh-identity ~/.ssh/id_ed25519.pub"},
+build:{s:"Release executable",out:"src-tauri/target/release/repoman or target/release/topbox",
+ what:"Compile the app for the target OS and architecture. The publisher needs one executable, not an installer bundle.",
+ list:["RepoMan: pnpm exec tauri build --no-bundle, with a direct cargo fallback.","topbox: cargo build --release.","The detected target must match the binary (linux-x86_64, linux-aarch64, …)."],
+ tip:"Cross-compile on the target OS or pass --target explicitly. An artifact built for the wrong architecture will install but fail to launch.",
+ ex:"pnpm exec tauri build --no-bundle"},
+package:{s:"tar.zst + SHA-256",out:"artifacts/<id>/<version>/<target>/<id>-<version>-<target>.tar.zst",
+ what:"Wrap the binary in a tar archive, compress it with zstd, and record its size and SHA-256.",
+ list:["Entry name from --entry (default: binary basename).","Deterministic metadata: mode 0755, mtime 0, uid/gid 0, empty owner names.","Same binary produces the same digest on every run."],
+ tip:"Deterministic packaging makes the digest meaningful for verification, caches and rollback.",
+ ex:"uv run --script scripts/publish_package.py --app-id repoman --version 0.2.0 --binary src-tauri/target/release/repoman --dry-run"},
+read:{s:"Catalog + target manifest",out:"v1/catalog.json + v1/latest-<target>.json (read)",
+ what:"Fetch the current catalog and this target's manifest before changing anything.",
+ list:["Anonymous HTTP GET from --base-url (http, https or file).","404 means the document does not exist yet; a default document is used.","Other HTTP errors abort before any write."],
+ tip:"Point --base-url at the bucket root, for example http://minio.topinfra.de:9000/releases/.",
+ ex:"--base-url http://minio.topinfra.de:9000/releases/"},
+merge:{s:"Replace one app entry",out:"new catalog.json + latest-<target>.json",
+ what:"Add or replace one app entry and point the target manifest at the new archive.",
+ list:["Catalog: id, name, optional description and notes.","Manifest: version, publishedAt, entry, archive.path, size, sha256.","Other apps and other targets are preserved; schema must stay 1."],
+ tip:"Only the released target changes. macOS and Windows keep their own manifests until they are published.",
+ ex:"--dry-run prints both documents before anything is uploaded"},
+dryrun:{s:"No writes",out:"console plan + JSON previews",
+ what:"Build the artifact and print the plan plus both JSON documents, then stop without writing to the store.",
+ list:["Run it against the live store; reads are anonymous and safe.","Review app, version, target, size, digest, store and transport.","No upload, no manifest change, no catalog change."],
+ tip:"Make the dry run the habit before every publish. It catches a wrong id, version, target or binary path while nothing is public.",
+ ex:"./scripts/deploy.sh --dry-run --ssh-host root@arm2.srv.topinfra.de"},
+"upload-artifact":{s:"First write",out:"artifact object in the bucket",
+ what:"Write the .tar.zst object to the release bucket over the MinIO client (mc) or SSH into the MinIO container (ssh-docker).",
+ list:["mc: uses an alias already configured with mc alias set.","ssh-docker: runs docker exec and streams the file over SSH.","The container expands its own MINIO_ROOT_USER and MINIO_ROOT_PASSWORD; no secret is printed."],
+ tip:"Upload the artifact first. A manifest that points at a missing file breaks every client on that target.",
+ ex:"--transport ssh-docker --ssh-host root@arm2.srv.topinfra.de --container minio-www"},
+"upload-manifest":{s:"Release becomes visible",out:"v1/latest-<target>.json",
+ what:"Publish v1/latest-<target>.json, the document that points clients at the new artifact.",
+ list:["Second of three writes.","Contains version, publishedAt, entry and archive metadata.","Only clients on this OS/arch see the new release."],
+ tip:"This is the moment the release becomes visible to that target, so the artifact must already be in place.",
+ ex:"v1/latest-linux-x86_64.json"},
+"upload-catalog":{s:"Discovery last",out:"v1/catalog.json",
+ what:"Publish v1/catalog.json so the app appears in discovery and clients refresh their app list.",
+ list:["Third and final write.","Lists every app with display metadata; no archive details.","Clients pick up the new entry on their next refresh."],
+ tip:"Catalog last keeps discovery consistent with the manifest that already points at the release.",
+ ex:"v1/catalog.json"},
+verify:{s:"Size + digest",out:"verification result; --no-verify skips it",
+ what:"Download the artifact through the same URL clients use, compare size and SHA-256, then check the manifest and catalog.",
+ list:["Artifact size and digest must match exactly.","Manifest must list the app, version and digest.","Catalog must list the app."],
+ tip:"Verification catches a wrong bucket path, a stale proxy cache, or a missing anonymous-get policy before users hit it.",
+ ex:"--no-verify skips this check when the store is known to be slow"},
+client:{s:"topbox installs",out:"updated app on the client",
+ what:"A running topbox fetches the catalog, then its own target manifest, downloads the artifact, verifies it and installs it atomically.",
+ list:["Catalog and manifest refresh with conditional GETs.","Download is checked against size and SHA-256 before extraction.","Installs are staged and keep the previous version for rollback."],
+ tip:"The client never trusts the manifest alone; the digest check is what makes the release safe.",
+ ex:"topbox --source http://minio.topinfra.de:9000/releases/"}},
+de:{
+prepare:{s:"Version + Changelog",out:"Release-Version + Changelog-Eintrag",
+ what:"Release-Version wählen und festhalten, was sich geändert hat. Bei RepoMan steht die Version in package.json, src-tauri/tauri.conf.json und src-tauri/Cargo.toml; topbox nutzt Cargo.toml.",
+ list:["Alle Versionsdateien gleich halten; ./scripts/deploy.sh prüft das.","Vor dem Bauen einen benutzersichtbaren Eintrag in CHANGELOG.md ergänzen.","Aus einem sauberen Arbeitsbaum veröffentlichen, damit das Artefakt zu einem bekannten Commit passt."],
+ tip:"Das Wrapper-Skript erhöht die Patch-Version automatisch. Die Änderung bleibt im Arbeitsbaum, damit du sie nach erfolgreichem Publish prüfen, committen und taggen kannst.",
+ ex:"./scripts/deploy.sh 0.2.0 --ssh-host root@arm2.srv.topinfra.de --ssh-identity ~/.ssh/id_ed25519.pub"},
+build:{s:"Release-Binary",out:"src-tauri/target/release/repoman oder target/release/topbox",
+ what:"Die App für Ziel-OS und Architektur kompilieren. Der Publisher braucht eine ausführbare Datei, kein Installer-Bundle.",
+ list:["RepoMan: pnpm exec tauri build --no-bundle, mit direktem cargo-Fallback.","topbox: cargo build --release.","Das erkannte Ziel muss zum Binary passen (linux-x86_64, linux-aarch64, …)."],
+ tip:"Auf dem Ziel-OS kompilieren oder --target explizit setzen. Ein Binary für die falsche Architektur installiert, startet aber nicht.",
+ ex:"pnpm exec tauri build --no-bundle"},
+package:{s:"tar.zst + SHA-256",out:"artifacts/<id>/<version>/<target>/<id>-<version>-<target>.tar.zst",
+ what:"Das Binary in ein tar-Archiv legen, mit zstd komprimieren und Größe sowie SHA-256 festhalten.",
+ list:["Eintragsname aus --entry (Standard: Dateiname des Binaries).","Deterministische Metadaten: Modus 0755, mtime 0, uid/gid 0, leere Besitzernamen.","Dasselbe Binary erzeugt bei jedem Lauf denselben Digest."],
+ tip:"Deterministisches Packen macht den Digest für Verifikation, Caches und Rollback aussagekräftig.",
+ ex:"uv run --script scripts/publish_package.py --app-id repoman --version 0.2.0 --binary src-tauri/target/release/repoman --dry-run"},
+read:{s:"Katalog + Ziel-Manifest",out:"v1/catalog.json + v1/latest-<target>.json (gelesen)",
+ what:"Aktuellen Katalog und das Manifest dieses Ziels lesen, bevor etwas geändert wird.",
+ list:["Anonymer HTTP-GET von --base-url (http, https oder file).","404 bedeutet, das Dokument existiert noch nicht; es wird ein Standarddokument verwendet.","Andere HTTP-Fehler brechen vor jedem Schreibzugriff ab."],
+ tip:"--base-url zeigt auf die Bucket-Wurzel, zum Beispiel http://minio.topinfra.de:9000/releases/.",
+ ex:"--base-url http://minio.topinfra.de:9000/releases/"},
+merge:{s:"Einen App-Eintrag ersetzen",out:"neue catalog.json + latest-<target>.json",
+ what:"Einen App-Eintrag hinzufügen oder ersetzen und das Ziel-Manifest auf das neue Archiv zeigen lassen.",
+ list:["Katalog: id, name, optionale description und notes.","Manifest: version, publishedAt, entry, archive.path, size, sha256.","Andere Apps und Ziele bleiben erhalten; das Schema muss 1 bleiben."],
+ tip:"Nur das veröffentlichte Ziel ändert sich. macOS und Windows behalten ihr eigenes Manifest, bis sie veröffentlicht werden.",
+ ex:"--dry-run gibt beide Dokumente aus, bevor etwas hochgeladen wird"},
+dryrun:{s:"Keine Schreibzugriffe",out:"Konsolenplan + JSON-Vorschau",
+ what:"Artefakt bauen, Plan und beide JSON-Dokumente ausgeben und stoppen, ohne in den Store zu schreiben.",
+ list:["Gegen den Live-Store ausführen; Lesen ist anonym und sicher.","App, Version, Ziel, Größe, Digest, Store und Transport prüfen.","Kein Upload, keine Manifest-Änderung, keine Katalog-Änderung."],
+ tip:"Mach den Dry Run vor jedem Publish zur Gewohnheit. Er findet falsche ID, Version, Ziel oder Binary-Pfad, solange nichts öffentlich ist.",
+ ex:"./scripts/deploy.sh --dry-run --ssh-host root@arm2.srv.topinfra.de"},
+"upload-artifact":{s:"Erster Schreibvorgang",out:"Artefakt-Objekt im Bucket",
+ what:"Das .tar.zst-Objekt über den MinIO-Client (mc) oder per SSH in den MinIO-Container (ssh-docker) in den Release-Bucket schreiben.",
+ list:["mc: nutzt einen Alias, der bereits mit mc alias set eingerichtet ist.","ssh-docker: führt docker exec aus und streamt die Datei über SSH.","Der Container expandiert seine eigenen MINIO_ROOT_USER und MINIO_ROOT_PASSWORD; kein Secret wird ausgegeben."],
+ tip:"Das Artefakt zuerst hochladen. Ein Manifest, das auf eine fehlende Datei zeigt, bricht jeden Client auf diesem Ziel.",
+ ex:"--transport ssh-docker --ssh-host root@arm2.srv.topinfra.de --container minio-www"},
+"upload-manifest":{s:"Release wird sichtbar",out:"v1/latest-<target>.json",
+ what:"v1/latest-<target>.json veröffentlichen – das Dokument, das Clients auf das neue Artefakt zeigt.",
+ list:["Zweiter von drei Schreibvorgängen.","Enthält version, publishedAt, entry und Archive-Metadaten.","Nur Clients auf diesem OS/Arch sehen den neuen Release."],
+ tip:"In diesem Moment wird der Release für dieses Ziel sichtbar; das Artefakt muss also bereits vorhanden sein.",
+ ex:"v1/latest-linux-x86_64.json"},
+"upload-catalog":{s:"Discovery zuletzt",out:"v1/catalog.json",
+ what:"v1/catalog.json veröffentlichen, damit die App in der Discovery erscheint und Clients ihre App-Liste aktualisieren.",
+ list:["Dritter und letzter Schreibvorgang.","Listet jede App mit Anzeige-Metadaten; keine Archivdetails.","Clients übernehmen den neuen Eintrag beim nächsten Refresh."],
+ tip:"Katalog zuletzt hält die Discovery konsistent mit dem Manifest, das bereits auf den Release zeigt.",
+ ex:"v1/catalog.json"},
+verify:{s:"Größe + Digest",out:"Verifikationsergebnis; --no-verify überspringt es",
+ what:"Das Artefakt über dieselbe URL wie die Clients herunterladen, Größe und SHA-256 vergleichen und dann Manifest und Katalog prüfen.",
+ list:["Artefaktgröße und Digest müssen exakt passen.","Manifest muss App, Version und Digest listen.","Katalog muss die App listen."],
+ tip:"Die Verifikation findet einen falschen Bucket-Pfad, einen veralteten Proxy-Cache oder eine fehlende Anonymous-Get-Policy, bevor Nutzer es merken.",
+ ex:"--no-verify überspringt die Prüfung, wenn der Store bekanntermaßen langsam ist"},
+client:{s:"topbox installiert",out:"aktualisierte App auf dem Client",
+ what:"Ein laufendes topbox lädt den Katalog, dann sein eigenes Ziel-Manifest, lädt das Artefakt herunter, verifiziert es und installiert atomar.",
+ list:["Katalog und Manifest werden per Conditional GET aktualisiert.","Der Download wird vor dem Entpacken gegen Größe und SHA-256 geprüft.","Installationen werden gestaged und behalten die vorherige Version für Rollback."],
+ tip:"Der Client vertraut nicht allein dem Manifest; die Digest-Prüfung macht den Release sicher.",
+ ex:"topbox --source http://minio.topinfra.de:9000/releases/"}}};
+const UI={
+en:{title:"Deployment & release process",
+ sub:"Click any step for details. Hover to trace its connections. Press Walk through to follow a binary from build to client.",
+ incDryrun:"Include dry-run preview",incVerify:"Include verification",
+ walk:"Walk through",replay:"Replay",pause:"Pause",resume:"Resume",stopBtn:"Stop",
+ light:"☀ Light",dark:"☾ Dark",core:"Core step",opt:"Optional step",
+ capEmpty:"Select a step, or start the walkthrough.",d3err:"d3 could not be loaded. Open this file with an internet connection.",
+ inc:"Typically includes",outH:"Output",exH:"Example command",
+ prev:"Previous",next:"Next",copy:"Copy example command",copied:"Copied",copyFail:"Copy failed",close:"Close",
+ lang:"Language",svg:"Deployment and release process: bump version, build, package, read store, merge metadata, upload artifact, manifest and catalog, verify, then client update"},
+de:{title:"Deployment- und Release-Prozess",
+ sub:"Klick auf einen Schritt zeigt Details. Hover verfolgt die Verbindungen. Mit „Ablauf durchspielen“ wandert ein Binary vom Build zum Client.",
+ incDryrun:"Dry-Run-Vorschau einbeziehen",incVerify:"Verifikation einbeziehen",
+ walk:"Ablauf durchspielen",replay:"Erneut abspielen",pause:"Pause",resume:"Fortsetzen",stopBtn:"Stopp",
+ light:"☀ Hell",dark:"☾ Dunkel",core:"Kernschritt",opt:"Optionaler Schritt",
+ capEmpty:"Schritt auswählen oder Ablauf durchspielen.",d3err:"d3 konnte nicht geladen werden. Öffne diese Datei mit Internetverbindung.",
+ inc:"Typischerweise enthalten",outH:"Ergebnis",exH:"Beispielbefehl",
+ prev:"Zurück",next:"Weiter",copy:"Beispielbefehl kopieren",copied:"Kopiert",copyFail:"Kopieren fehlgeschlagen",close:"Schließen",
+ lang:"Sprache",svg:"Deployment- und Release-Prozess: Version erhöhen, bauen, packen, Store lesen, Metadaten mergen, Artefakt, Manifest und Katalog hochladen, verifizieren, dann Client-Update"}};
+const L=[
+{from:"prepare",to:"build",d:"M200 76V102"},
+{from:"build",to:"package",d:"M200 160V186"},
+{from:"package",to:"read",d:"M200 244V270"},
+{from:"read",to:"merge",d:"M200 328V354"},
+{from:"merge",to:"upload-artifact",d:"M200 412V438"},
+{from:"upload-artifact",to:"upload-manifest",d:"M200 496V522"},
+{from:"upload-manifest",to:"upload-catalog",d:"M200 580V606"},
+{from:"upload-catalog",to:"client",d:"M200 664V690"},
+{from:"merge",to:"dryrun",d:"M330 384H398",dash:1,opt:"dryrun"},
+{from:"dryrun",to:"upload-artifact",d:"M525 412V468H332",dash:1,opt:"dryrun"},
+{from:"upload-catalog",to:"verify",d:"M330 636H398",dash:1,opt:"verify"},
+{from:"verify",to:"client",d:"M525 664V720H332",dash:1,opt:"verify"}];
+const TITLES={
+en:{prepare:"Bump version",build:"Build binary",package:"Package artifact",read:"Read store",merge:"Merge metadata",dryrun:"Preview (dry run)","upload-artifact":"Upload artifact","upload-manifest":"Upload manifest","upload-catalog":"Upload catalog",verify:"Verify read",client:"Client update"},
+de:{prepare:"Version erhöhen",build:"Binary bauen",package:"Artefakt packen",read:"Store lesen",merge:"Metadaten mergen",dryrun:"Vorschau (Dry Run)","upload-artifact":"Artefakt hochladen","upload-manifest":"Manifest hochladen","upload-catalog":"Katalog hochladen",verify:"Read verifizieren",client:"Client-Update"}};
+const byId=Object.fromEntries(N.map(n=>[n.id,n]));
+const on={dryrun:true,verify:true};
+const $=id=>document.getElementById(id);
+const root=document.documentElement,tm=matchMedia("(prefers-color-scheme:dark)");
+let stored=null;try{stored=localStorage.getItem("td-doc-theme")}catch(_){}
+let lang=null;try{lang=localStorage.getItem("td-doc-lang")}catch(_){}
+if(lang!=="de"&&lang!=="en")lang=(navigator.language||"en").toLowerCase().startsWith("de")?"de":"en";
+const U=()=>UI[lang],C=id=>TXT[lang][id],T=id=>TITLES[lang][id];
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let mode="idle",paused=false,run=0,open=null,walked=[],d3ui=null;
+const syncTheme=()=>{const d=root.dataset.theme==="dark";$("theme").textContent=d?"☀":"☾";const l=d?U().light:U().dark;$("theme").setAttribute("aria-label",l);$("theme").title=l};
+if(!stored&&tm.addEventListener)tm.addEventListener("change",e=>{root.dataset.theme=e.matches?"dark":"light";syncTheme()});
+$("theme").onclick=()=>{const t=root.dataset.theme==="dark"?"light":"dark";root.dataset.theme=t;try{localStorage.setItem("td-doc-theme",t)}catch(_){}syncTheme()};
+const renderChips=()=>{$("files").innerHTML="";walked.forEach(id=>{const el=document.createElement("span");el.className="chip";el.textContent=C(id).out;$("files").appendChild(el)})};
+function setMode(m){mode=m;const w=$("walk"),p=$("pause"),s=$("stop"),r=m==="run"||m==="pause";
+ w.disabled=r;p.hidden=s.hidden=!r;p.textContent=m==="pause"?"▶":"⏸";
+ const pl=m==="pause"?U().resume:U().pause;p.setAttribute("aria-label",pl);p.title=pl;
+ s.setAttribute("aria-label",U().stopBtn);s.title=U().stopBtn;
+ w.textContent=m==="done"?U().replay:U().walk}
+if(!window.d3){}
+else{
+const svg=d3.select("#svg");
+svg.append("defs").append("marker").attr("id","arr").attr("viewBox","0 0 10 10").attr("refX",8).attr("refY",5).attr("markerWidth",6).attr("markerHeight",6).attr("orient","auto-start-reverse")
+ .append("path").attr("d","M2 1L8 5L2 9").attr("fill","none").attr("stroke","var(--td-color-fg-muted)").attr("stroke-width",1.5).attr("stroke-linecap","round").attr("stroke-linejoin","round");
+const links=svg.append("g").selectAll("path").data(L).join("path").attr("class",d=>"link"+(d.dash?" dash":"")).attr("d",d=>d.d).attr("marker-end","url(#arr)");
+const nodes=svg.append("g").selectAll("g").data(N).join("g")
+ .attr("class",d=>"node "+(d.opt?"opt":"core")).attr("transform",d=>`translate(${d.x},${d.y})`)
+ .attr("tabindex",0).attr("role","button").attr("aria-label",d=>`${T(d.id)}: ${C(d.id).s}`);
+nodes.append("rect").attr("width",d=>d.w).attr("height",d=>d.h).attr("rx",8);
+nodes.append("text").attr("class","th").attr("x",d=>d.w/2).attr("y",20).text(d=>T(d.id));
+nodes.append("text").attr("class","ts").attr("x",d=>d.w/2).attr("y",39).text(d=>C(d.id).s);
+const leg=svg.append("g").attr("transform","translate(70,772)");
+leg.append("rect").attr("width",16).attr("height",16).attr("rx",4).style("fill","var(--node-core-bg)").style("stroke","var(--td-color-primary)").style("stroke-width",1);
+const legCore=leg.append("text").attr("class","leg").attr("x",24).attr("y",9).text(U().core);
+leg.append("rect").attr("x",130).attr("width",16).attr("height",16).attr("rx",4).style("fill","var(--node-opt-bg)").style("stroke","var(--td-color-accent)").style("stroke-dasharray","3 2");
+const legOpt=leg.append("text").attr("class","leg").attr("x",154).attr("y",9).text(U().opt);
+const token=svg.append("circle").attr("r",7).attr("fill","var(--td-color-warning)").attr("opacity",0).attr("pointer-events","none");
+const fit=()=>nodes.each(function(d){[["th",15],["ts",12.5]].forEach(([cls,base])=>{const t=this.querySelector("."+cls);t.style.fontSize="";let fs=base;while(t.getComputedTextLength()>d.w-14&&fs>9){fs-=.5;t.style.fontSize=fs+"px"}})});
+fit();
+d3ui={nodes,legCore,legOpt,fit};
+const vis=()=>N.filter(n=>!n.opt||on[n.id]);
+const showCap=n=>{const c=C(n.id);$("cap").innerHTML="<b></b><span></span>";$("cap").firstChild.textContent=T(n.id)+" — "+c.s;$("cap").lastChild.textContent=c.what};
+nodes.on("mouseenter focus",(e,d)=>{links.classed("dim",l=>l.from!==d.id&&l.to!==d.id)}).on("mouseleave blur",()=>links.classed("dim",false))
+ .on("click",(e,d)=>openModal(d.id)).on("keydown",(e,d)=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openModal(d.id)}});
+function applyOpt(){
+ nodes.filter(d=>d.opt).transition().duration(250).style("opacity",d=>on[d.id]?1:.18).style("pointer-events",d=>on[d.id]?"auto":"none").attr("tabindex",d=>on[d.id]?0:-1);
+ links.filter(d=>d.opt).transition().duration(250).style("opacity",d=>on[d.opt]?1:0);
+}
+["dryrun","verify"].forEach(k=>$("t-"+k).onchange=e=>{on[k]=e.target.checked;resetWalk();applyOpt()});
+const reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const easeCubic=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+function resetWalk(){run++;paused=false;nodes.classed("active",false);token.attr("opacity",0);setMode("idle")}
+function moveToken(el,me){
+ return new Promise(res=>{
+  const len=el.getTotalLength(),dur=reduce?1:750;let prog=0,last=null;
+  const tick=now=>{
+   if(me!==run)return res();
+   if(last===null)last=now;
+   const dt=now-last;last=now;
+   if(!paused){prog=Math.min(1,prog+dt/dur);const p=el.getPointAtLength(easeCubic(prog)*len);token.attr("transform",`translate(${p.x},${p.y})`)}
+   if(prog<1)requestAnimationFrame(tick);else res();
+  };
+  requestAnimationFrame(tick);
+ });
+}
+async function walk(){
+ resetWalk();const me=run;setMode("run");walked=[];renderChips();
+ const route=vis().sort((a,b)=>route0(a)-route0(b));
+ for(let i=0;i<route.length;i++){
+  const n=route[i];
+  if(i>0){
+   const lk=L.find(l=>l.from===route[i-1].id&&l.to===n.id),el=links.filter(d=>d===lk).node();
+   token.attr("opacity",1);
+   await moveToken(el,me);
+   if(me!==run)return;
+  }
+  nodes.classed("active",d=>d===n);showCap(n);walked.push(n.id);renderChips();
+  await sleep(reduce?600:1100);
+  while(paused){if(me!==run)return;await sleep(90)}
+  if(me!==run)return;
+ }
+ token.attr("opacity",0);nodes.classed("active",false);setMode("done");
+}
+const ORDER=["prepare","build","package","read","merge","dryrun","upload-artifact","upload-manifest","upload-catalog","verify","client"];
+function route0(n){return ORDER.indexOf(n.id)}
+$("walk").onclick=()=>{if(mode==="run"||mode==="pause")return;walk()};
+$("pause").onclick=()=>{if(mode==="run"){paused=true;setMode("pause")}else if(mode==="pause"){paused=false;setMode("run")}};
+$("stop").onclick=resetWalk;
+}
+const visIds=()=>N.filter(n=>!n.opt||on[n.id]).map(n=>n.id);
+function openModal(id){
+ const list=visIds(),n=byId[id],c=C(id),i=list.indexOf(id);open=id;
+ $("m-title").textContent=c.s;$("m-cmd").textContent=T(id);
+ $("m-body").innerHTML=`<p>${esc(c.what)}</p><h3>${U().inc}</h3><ul>${c.list.map(x=>`<li>${esc(x)}</li>`).join("")}</ul><h3>${U().outH}</h3><p><code>${esc(c.out)}</code></p><div class="tip">${esc(c.tip)}</div><h3>${U().exH}</h3><pre>${esc(c.ex)}</pre>`;
+ $("m-prev").disabled=i<=0;$("m-next").disabled=i>=list.length-1;$("m-prev").dataset.t=list[i-1]||"";$("m-next").dataset.t=list[i+1]||"";
+ $("m-copy").textContent=U().copy;$("back").classList.add("open");$("m-close").focus();
+}
+function closeModal(){$("back").classList.remove("open");const el=[...document.querySelectorAll(".node")].find(g=>g.__data__&&g.__data__.id===open);if(el)el.focus()}
+$("m-close").onclick=closeModal;
+$("back").addEventListener("click",e=>{if(e.target===$("back"))closeModal()});
+$("m-prev").onclick=e=>openModal(e.currentTarget.dataset.t);
+$("m-next").onclick=e=>openModal(e.currentTarget.dataset.t);
+$("m-copy").onclick=async()=>{try{await navigator.clipboard.writeText(C(open).ex);$("m-copy").textContent=U().copied}catch(_){$("m-copy").textContent=U().copyFail}};
+document.addEventListener("keydown",e=>{
+ if(!$("back").classList.contains("open"))return;
+ if(e.key==="Escape")closeModal();
+ if(e.key==="ArrowRight"&&!$("m-next").disabled)openModal($("m-next").dataset.t);
+ if(e.key==="ArrowLeft"&&!$("m-prev").disabled)openModal($("m-prev").dataset.t);
+ if(e.key==="Tab"){const f=[...$("modal").querySelectorAll("button:not(:disabled)")],a=document.activeElement;
+  if(e.shiftKey&&a===f[0]){e.preventDefault();f[f.length-1].focus()}else if(!e.shiftKey&&a===f[f.length-1]){e.preventDefault();f[0].focus()}}
+});
+function applyLang(){
+ document.documentElement.lang=lang;document.title=U().title;
+ $("h1").textContent=U().title;$("sub").textContent=U().sub;
+ $("l-dryrun").textContent=U().incDryrun;$("l-verify").textContent=U().incVerify;
+ $("m-prev").textContent=U().prev;$("m-next").textContent=U().next;$("m-close").textContent=U().close;
+ $("seg").setAttribute("aria-label",U().lang);$("svg").setAttribute("aria-label",U().svg);
+ $("lang-en").setAttribute("aria-pressed",String(lang==="en"));$("lang-de").setAttribute("aria-pressed",String(lang==="de"));
+ syncTheme();
+ if(!window.d3)$("cap").textContent=U().d3err;
+ else{d3ui.nodes.select(".th").text(d=>T(d.id));d3ui.nodes.select(".ts").text(d=>C(d.id).s);d3ui.nodes.attr("aria-label",d=>`${T(d.id)}: ${C(d.id).s}`);d3ui.fit();
+  d3ui.legCore.text(U().core);d3ui.legOpt.text(U().opt);renderChips();
+  if(open)openModal(open);
+  else if(mode==="idle"&&!walked.length)$("cap").innerHTML=`<span>${U().capEmpty}</span>`}
+ setMode(mode);
+}
+["en","de"].forEach(k=>$("lang-"+k).onclick=()=>{lang=k;try{localStorage.setItem("td-doc-lang",k)}catch(_){}applyLang()});
+applyLang();
+</script>
+</body>
+</html>

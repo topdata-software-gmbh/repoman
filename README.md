@@ -184,6 +184,21 @@ Build a desktop installer/bundle:
 pnpm tauri build
 ```
 
+### Release a version
+
+Build the release binary and publish it to the topbox release store:
+
+```bash
+./scripts/deploy.sh 0.2.0 --ssh-host root@arm2.srv.topinfra.de \
+    --ssh-identity ~/.ssh/id_ed25519.pub
+```
+
+Preview the release without uploading with `--dry-run`, or omit the version to
+bump the patch automatically. The script keeps the version bump in the working
+tree so you can commit and tag it after a successful publish. See
+[docs/deployment-release-visualization.html](docs/deployment-release-visualization.html)
+for the full pipeline.
+
 ### Install a command on your PATH
 
 Build a release binary and install it as `repoman`:
@@ -432,6 +447,7 @@ src-tauri/src/           Rust backend
 src-tauri/macros/        Declarative Git action and alias templates
 assets/                  Icon source
 scripts/install.sh       Build and install the release binary
+scripts/deploy.sh        Bump, build, and publish a release
 ```
 
 ## Security notes
