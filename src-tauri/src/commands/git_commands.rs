@@ -103,3 +103,36 @@ pub async fn switch_group_branch(
 pub async fn list_group_branches(repo_paths: Vec<String>) -> Result<Vec<BranchInfo>, String> {
     service::list_group_branches(repo_paths).await
 }
+
+/// Thin transport for the read-only change viewer (contracts/review-commands C1).
+#[tauri::command]
+pub async fn review_project(
+    path: String,
+    mode: crate::review::ReviewMode,
+    commit_hash: Option<String>,
+) -> Result<crate::review::ProjectComparison, String> {
+    service::review_project(crate::review::ReviewProjectRequest {
+        path,
+        mode,
+        commit_hash,
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn review_file(
+    path: String,
+    mode: crate::review::ReviewMode,
+    commit_hash: Option<String>,
+    file_path: String,
+    old_path: Option<String>,
+) -> Result<crate::review::FilePreview, String> {
+    service::review_file(crate::review::ReviewFileRequest {
+        path,
+        mode,
+        commit_hash,
+        file_path,
+        old_path,
+    })
+    .await
+}

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { FileText, RefreshCw, Save, Sparkles } from 'lucide-vue-next';
+import { Eye, FileText, RefreshCw, Save, Sparkles } from 'lucide-vue-next';
 import {
   TdAlert,
   TdBadge,
@@ -196,6 +196,11 @@ function retry(path: string): void {
   void store.retryRepo(path);
 }
 
+function review(): void {
+  if (repos.value.length === 0) return;
+  store.openReviewFromSaveChanges(repos.value.map((repo) => repo.path));
+}
+
 async function save(): Promise<void> {
   if (!canSave.value) return;
 
@@ -364,6 +369,14 @@ async function save(): Promise<void> {
           }}
         </p>
         <div class="flex items-center gap-2">
+          <TdButton
+            variant="secondary"
+            :disabled="repos.length === 0 || loading || saving"
+            @click="review"
+          >
+            <template #icon-left><Eye /></template>
+            {{ t('review.rowAction') }}
+          </TdButton>
           <TdButton variant="ghost" :disabled="saving" @click="store.closeSaveChanges">
             {{ t('save.cancel') }}
           </TdButton>

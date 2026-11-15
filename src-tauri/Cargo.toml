@@ -29,6 +29,9 @@ url = "2"
 serdes-ai = { git = "https://github.com/janfeddersen-wq/serdesAI", tag = "v0.2.6", default-features = false, features = ["openai"] }
 async-trait = "0.1"
 tracing = "0.1"
+# Read-only change viewer (specs/004) — bounded image previews over IPC/JSON.
+base64 = "0.22"
+imagesize = "0.13"
 
 [dev-dependencies]
 tempfile = "3"

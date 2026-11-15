@@ -3,11 +3,15 @@ import type {
   BranchInfo,
   CommitGenEvent,
   FileChange,
+  FilePreview,
   GitStepEvent,
   OnboardingState,
   OperationResult,
+  ProjectComparison,
   RepoGroup,
   Repository,
+  ReviewFileRequest,
+  ReviewProjectRequest,
   ScanPath,
   ScanProgressEvent,
 } from '../types/domain';
@@ -166,6 +170,26 @@ export const backend = {
       'POST',
       '/api/repositories/changes',
       { path },
+    );
+  },
+
+  reviewProject(payload: ReviewProjectRequest): Promise<ProjectComparison> {
+    return request<ProjectComparison>(
+      'review_project',
+      { ...payload },
+      'POST',
+      '/api/repositories/review',
+      payload,
+    );
+  },
+
+  reviewFile(payload: ReviewFileRequest): Promise<FilePreview> {
+    return request<FilePreview>(
+      'review_file',
+      { ...payload },
+      'POST',
+      '/api/repositories/review-file',
+      payload,
     );
   },
 

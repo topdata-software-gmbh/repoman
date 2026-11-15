@@ -4,7 +4,8 @@ A lightweight, beginner-friendly multi-repository Git GUI (formerly
 `git-repo-manager`). Discover repositories below configured folders, group them
 (for example "Shop themes"), watch their Git
 state, and save, fetch, pull, push, or stash across a whole group at once — with
-plain-language guidance instead of Git jargon.
+plain-language guidance instead of Git jargon. See [_ai/goals.md](_ai/goals.md)
+for what the project is primarily for, its non-goals, and its macOS support.
 
 The core is written in Rust and shared by two frontends:
 
@@ -33,6 +34,13 @@ user's SSH agent, credential helpers, and GPG signing configuration.
   fallback when the operating system's watch limit is exhausted).
 - Guided **Save to Git** flow: preview changed files, write one plain-language
   message, and commit each dirty project in the selection.
+- Read-only **change viewer** from any project row, the Save dialog, or a save
+  entry in the activity drawer: plain-language file list (*New*, *Changed*,
+  *Deleted*, *Renamed*, *Conflict*), side-by-side before/after with collapsed
+  unchanged stretches, unified and technical views, image previews with
+  size/dimension caps, and explicit notices for binary, oversized, corrupt,
+  unreadable, unavailable, and stale states. It never stages, saves, discards,
+  or reverts anything.
 - Pull automatically sets aside unfinished changes and restores them afterwards;
   push creates the upstream branch when needed.
 - Friendly error messages translate common Git failures into the next action.
@@ -393,6 +401,8 @@ All routes are under `/api` and require the token when one is configured.
 | POST | `/api/repositories/discover` | Scan paths and return repository states |
 | POST | `/api/repositories/refresh` | Refresh one repository |
 | POST | `/api/repositories/changes` | List changed files for one repository |
+| POST | `/api/repositories/review` | Read-only project inventory for the change viewer |
+| POST | `/api/repositories/review-file` | Bounded read-only preview for one file |
 | POST | `/api/repositories/commit` | Commit all changes in one repository |
 | POST | `/api/repositories/actions` | Fetch/pull/push/stash across repositories |
 | POST | `/api/repositories/switch-branch` | Switch a set of repositories to a branch |

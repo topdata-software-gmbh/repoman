@@ -69,3 +69,48 @@ select option {
   background-color: var(--td-color-surface);
   color: var(--td-color-fg);
 }
+
+/* highlight.js token colours, mapped to semantic tokens only. */
+.hljs-comment,
+.hljs-quote {
+  color: var(--td-color-fg-dim);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-built_in,
+.hljs-type {
+  color: var(--td-color-accent);
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-attr,
+.hljs-attribute,
+.hljs-selector-attr,
+.hljs-selector-pseudo {
+  color: var(--td-color-success-fg);
+}
+
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link {
+  color: var(--td-color-warning-fg);
+}
+
+.hljs-title,
+.hljs-section,
+.hljs-function .hljs-title,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: var(--td-color-info-fg);
+}
+
+.hljs-meta,
+.hljs-doctag,
+.hljs-tag {
+  color: var(--td-color-primary);
+}

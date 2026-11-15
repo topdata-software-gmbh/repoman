@@ -11,6 +11,7 @@ import GuidanceBanner from './components/GuidanceBanner.vue';
 import HelpModal from './components/HelpModal.vue';
 import OnboardingWizard from './components/OnboardingWizard.vue';
 import RepoTable from './components/RepoTable.vue';
+import ReviewViewer from './components/ReviewViewer.vue';
 import SaveChangesModal from './components/SaveChangesModal.vue';
 import ScanActivityModal from './components/ScanActivityModal.vue';
 import Sidebar from './components/Sidebar.vue';
@@ -25,7 +26,10 @@ onMounted(async () => {
 
   try {
     unsubscribe = await subscribeToEvents({
-      onRepoChanged: (path) => void store.refreshSingleRepo(path),
+      onRepoChanged: (path) => {
+        store.markReviewStale(path);
+        void store.refreshSingleRepo(path);
+      },
       onGitStep: (step) => store.recordGitStep(step),
       onScanProgress: (event) => store.applyScanProgress(event),
       onCommitGen: (event) => store.handleCommitGenEvent(event),
@@ -60,6 +64,7 @@ onUnmounted(() => unsubscribe?.());
     </template>
     <!-- Mounted outside the branch so the live log is reachable during onboarding too. -->
     <ScanActivityModal />
+    <ReviewViewer />
     <ToastStack />
   </div>
 </template>

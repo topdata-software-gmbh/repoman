@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import {
   AlertCircle,
   ArrowDownToLine,
+  Eye,
   GitBranch,
   GitMerge,
   RefreshCw,
@@ -135,6 +136,18 @@ function isRowBusy(repo: Repository): boolean {
             <div
               class="flex items-center justify-end gap-1.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100"
             >
+              <TdButton
+                variant="ghost"
+                size="sm"
+                :disabled="!repo.isAccessible || store.isLoading"
+                :aria-label="t('review.rowActionFor', { name: repo.name })"
+                :title="t('review.rowAction')"
+                @click="store.openReviewFromRow(repo.path, repo.name)"
+              >
+                <template #icon-left><Eye /></template>
+                <span>{{ t('review.rowAction') }}</span>
+              </TdButton>
+
               <TdButton
                 v-if="!repo.state.isClean"
                 variant="ghost"

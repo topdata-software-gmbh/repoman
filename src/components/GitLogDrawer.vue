@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { X } from 'lucide-vue-next';
+import { Eye, X } from 'lucide-vue-next';
 import { TdBadge, TdButton } from '@topdata-software-gmbh/ui-kit-web-vue3';
 import { groupGitRuns, shopName } from '../lib/gitLog';
 import { t, tPlural } from '../lib/i18n';
@@ -23,6 +23,13 @@ function toggle(runId: string): void {
   if (next.has(runId)) next.delete(runId);
   else next.add(runId);
   expanded.value = next;
+}
+
+function viewSavedRun(run: GitRun): void {
+  const repoPath = run.rows.flatMap((row) => row.repoPaths)[0];
+  if (!repoPath) return;
+  const reference = store.saveRefFor(run.runId);
+  store.openReviewSaved(repoPath, reference?.commitHash ?? null, shopName(repoPath));
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -64,9 +71,10 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 
     <ol v-else class="max-h-[38vh] overflow-y-auto px-4 py-2">
       <li v-for="run in runs" :key="run.runId" class="border-b border-border py-2 last:border-b-0">
+        <div class="flex items-start gap-2">
         <button
           type="button"
-          class="flex w-full items-start gap-2 text-left"
+          class="flex min-w-0 flex-1 items-start gap-2 text-left"
           :aria-expanded="expanded.has(run.runId)"
           @click="toggle(run.runId)"
         >
@@ -90,6 +98,18 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
             {{ expanded.has(run.runId) ? t('gitLog.hideCommands') : t('gitLog.showCommands') }}
           </span>
         </button>
+
+        <TdButton
+          v-if="run.macroId === 'commit' && run.rows.length > 0"
+          variant="ghost"
+          size="sm"
+          :aria-label="t('review.saved.viewFor', { message: run.title })"
+          @click="viewSavedRun(run)"
+        >
+          <template #icon-left><Eye /></template>
+          {{ t('review.saved.view') }}
+        </TdButton>
+        </div>
 
         <div v-if="expanded.has(run.runId)" class="mt-2 space-y-1 pl-4">
           <div v-for="row in run.rows" :key="row.key">

@@ -168,6 +168,24 @@ async fn list_repo_changes(Json(request): Json<RepoRequest>) -> ApiResult<Vec<Fi
     Ok(Json(service::list_repo_changes(request.path).await))
 }
 
+async fn review_project(
+    Json(request): Json<crate::review::ReviewProjectRequest>,
+) -> ApiResult<crate::review::ProjectComparison> {
+    service::review_project(request)
+        .await
+        .map(Json)
+        .map_err(api_error)
+}
+
+async fn review_file(
+    Json(request): Json<crate::review::ReviewFileRequest>,
+) -> ApiResult<crate::review::FilePreview> {
+    service::review_file(request)
+        .await
+        .map(Json)
+        .map_err(api_error)
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GenerateCommitMessagesRequest {
@@ -354,6 +372,8 @@ async fn serve(options: WebOptions) -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/repositories/discover", post(discover_repositories))
         .route("/api/repositories/refresh", post(refresh_repository))
         .route("/api/repositories/changes", post(list_repo_changes))
+        .route("/api/repositories/review", post(review_project))
+        .route("/api/repositories/review-file", post(review_file))
         .route("/api/repositories/commit", post(commit_repo_changes))
         .route(
             "/api/repositories/generate-commit-messages",

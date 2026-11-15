@@ -78,6 +78,10 @@ export interface OperationResult {
   success: boolean;
   output: string;
   error: string | null;
+  /** Shared with this invocation's Git step events (specs/004, contract C1). */
+  runId: string | null;
+  /** HEAD hash after a successful commit; null for group actions and failures. */
+  commitHash: string | null;
 }
 
 export interface BranchInfo {
@@ -90,6 +94,131 @@ export type FileChangeStatus = 'modified' | 'new' | 'deleted' | 'renamed' | 'con
 export interface FileChange {
   path: string;
   status: FileChangeStatus;
+}
+
+// --- Read-only change viewer (specs/004-diff-viewer, data-model E2–E8) ---
+
+export type ReviewMode = 'unsaved' | 'save';
+export type ReviewOrigin = 'row' | 'saveChanges' | 'activity';
+export type DisplayMode = 'sideBySide' | 'unified' | 'raw';
+export type ProjectComparisonState = 'ready' | 'empty' | 'unreadable' | 'unavailable';
+export type DiffFileStatus = 'new' | 'modified' | 'deleted' | 'renamed' | 'conflict';
+export type DiffFileKind = 'text' | 'image' | 'binary';
+export type PreviewNotice = 'too-large' | 'unsupported' | 'corrupt' | 'missing';
+export type ImagePreviewState = 'ready' | 'too-large' | 'unsupported' | 'corrupt' | 'missing';
+
+export interface ReviewSummary {
+  fileCount: number;
+  addedLines: number;
+  removedLines: number;
+}
+
+export interface ReviewError {
+  code: string;
+  detail?: string | null;
+}
+
+export interface SavedCommit {
+  hash: string;
+  message: string;
+  timestamp: number;
+}
+
+export interface DiffFileEntry {
+  path: string;
+  oldPath: string | null;
+  status: DiffFileStatus;
+  kind: DiffFileKind;
+  whitespaceOnly: boolean;
+  addedLines: number;
+  removedLines: number;
+}
+
+export interface ProjectComparison {
+  path: string;
+  name: string;
+  mode: ReviewMode;
+  state: ProjectComparisonState;
+  files: DiffFileEntry[];
+  summary: ReviewSummary;
+  saved: SavedCommit | null;
+  error: ReviewError | null;
+}
+
+export type DiffRowKind = 'same' | 'changed' | 'added' | 'removed';
+
+export interface DiffRow {
+  kind: DiffRowKind;
+  oldNumber?: number | null;
+  newNumber?: number | null;
+  oldText?: string | null;
+  newText?: string | null;
+}
+
+export interface DiffFold {
+  kind: 'fold';
+  oldStart: number;
+  newStart: number;
+  count: number;
+  rows: DiffRow[];
+}
+
+export type DiffLine = DiffRow | DiffFold;
+
+export interface TextPreview {
+  rows: DiffLine[];
+  truncated: boolean;
+  truncationReason: 'bytes' | 'lines' | null;
+  raw: string | null;
+  language: string | null;
+}
+
+export interface ImageSide {
+  dataUrl: string;
+  width: number;
+  height: number;
+  bytes: number;
+}
+
+export interface ImagePreview {
+  state: ImagePreviewState;
+  old: ImageSide | null;
+  new: ImageSide | null;
+}
+
+export interface BinaryPreview {
+  oldBytes: number;
+  newBytes: number;
+}
+
+export interface DiffPreview {
+  notice: PreviewNotice | null;
+  text?: TextPreview | null;
+  image?: ImagePreview | null;
+  binary?: BinaryPreview | null;
+}
+
+export interface FilePreview extends DiffFileEntry, DiffPreview {}
+
+export interface SaveRef {
+  runId: string;
+  repoPath: string;
+  commitHash: string;
+  savedAt: string;
+}
+
+export interface ReviewProjectRequest {
+  path: string;
+  mode: ReviewMode;
+  commitHash?: string;
+}
+
+export interface ReviewFileRequest {
+  path: string;
+  mode: ReviewMode;
+  commitHash?: string;
+  filePath: string;
+  oldPath?: string | null;
 }
 
 export interface OperationProgressEvent {

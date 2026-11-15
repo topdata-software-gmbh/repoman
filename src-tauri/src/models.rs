@@ -124,6 +124,12 @@ pub struct OperationResult {
     pub success: bool,
     pub output: String,
     pub error: Option<String>,
+    /// Run id shared with this invocation's Git step events (specs/004, contract C1).
+    #[serde(default)]
+    pub run_id: Option<String>,
+    /// HEAD hash read immediately after a successful commit (save reference).
+    #[serde(default)]
+    pub commit_hash: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

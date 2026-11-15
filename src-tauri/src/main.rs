@@ -9,6 +9,7 @@ mod git_log;
 mod git_runner;
 mod macros;
 mod models;
+mod review;
 mod scanner;
 mod service;
 mod watcher;
@@ -128,7 +129,9 @@ fn run_desktop(cli: Cli) {
             execute_group_action,
             switch_group_branch,
             list_group_branches,
-            generate_commit_messages
+            generate_commit_messages,
+            review_project,
+            review_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

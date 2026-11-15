@@ -56,6 +56,9 @@ impl RepoCtx {
     }
 
     /// Claims one lookup from the per-run budget.
+    // `fetch_update` is deprecated on newer toolchains but is the MSRV-1.80
+    // spelling; `try_update` would raise the minimum Rust version.
+    #[allow(deprecated)]
     pub fn claim_lookup(&self, limit: u32) -> bool {
         self.tool_calls_used
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |used| {

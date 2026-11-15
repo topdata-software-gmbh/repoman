@@ -23,13 +23,21 @@ import type {
   AppConfig,
   BranchInfo,
   CommitGenEvent,
+  DiffFileEntry,
+  DisplayMode,
+  FilePreview,
   GitStepEvent,
   GroupingStyle,
   OnboardingState,
   OperationResult,
+  ProjectComparison,
   RepoDraftRow,
   RepoGroup,
   Repository,
+  ReviewMode,
+  ReviewOrigin,
+  ReviewProjectRequest,
+  SaveRef,
   ScanActivityState,
   ScanPath,
   ScanProgressEvent,
@@ -156,6 +164,301 @@ export const useRepoStore = defineStore('repo', () => {
   const allReposFilters = ref<AllReposFilters>(emptyAllReposFilters());
   const gitSteps = ref<GitStepEvent[]>([]);
   const gitLogOpen = ref(false);
+
+  // --- Session-only read-only review viewer (specs/004, data-model E1/E6) ---
+  const reviewOpen = ref(false);
+  const reviewMode = ref<ReviewMode>('unsaved');
+  const reviewOrigin = ref<ReviewOrigin>('row');
+  const reviewProjects = ref<Array<{ path: string; name: string }>>([]);
+  const reviewActiveIndex = ref(0);
+  const reviewDisplayMode = ref<DisplayMode>('sideBySide');
+  const reviewCommitHash = ref<string | null>(null);
+  const reviewComparisons = ref<Map<string, ProjectComparison | null>>(new Map());
+  const reviewPreviews = ref<Map<string, FilePreview | null>>(new Map());
+  const reviewSelectedFileByProject = ref<Map<string, string | null>>(new Map());
+  const reviewStaleProjects = ref<Set<string>>(new Set());
+  const reviewLoadingProject = ref(false);
+  const reviewLoadingFile = ref(false);
+  const reviewSaveRefs = ref<Map<string, SaveRef>>(new Map());
+  let reviewProjectRequestId = 0;
+
+  function previewKey(projectPath: string, filePath: string): string {
+    return `${projectPath}\u0000${filePath}`;
+  }
+
+  function setReviewMapEntry<T>(target: Map<string, T>, key: string, value: T): Map<string, T> {
+    const next = new Map(target);
+    next.set(key, value);
+    return next;
+  }
+
+  const reviewActiveProject = computed(() => reviewProjects.value[reviewActiveIndex.value] ?? null);
+
+  const reviewActiveComparison = computed(() => {
+    const project = reviewActiveProject.value;
+    return project ? (reviewComparisons.value.get(project.path) ?? null) : null;
+  });
+
+  const reviewActiveSelectedFile = computed(() => {
+    const project = reviewActiveProject.value;
+    return project ? (reviewSelectedFileByProject.value.get(project.path) ?? null) : null;
+  });
+
+  const reviewActivePreview = computed(() => {
+    const project = reviewActiveProject.value;
+    const file = reviewActiveSelectedFile.value;
+    if (!project || !file) return null;
+    return reviewPreviews.value.get(previewKey(project.path, file)) ?? null;
+  });
+
+  const reviewIsStale = computed(() => {
+    const project = reviewActiveProject.value;
+    return project ? reviewStaleProjects.value.has(project.path) : false;
+  });
+
+  const reviewFileEntries = computed<DiffFileEntry[]>(
+    () => reviewActiveComparison.value?.files ?? [],
+  );
+
+  function reviewProjectName(path: string): string {
+    return repositories.value.find((repo) => repo.path === path)?.name ?? repoLabel(path);
+  }
+
+  function resetReviewCaches(): void {
+    reviewComparisons.value = new Map();
+    reviewPreviews.value = new Map();
+    reviewSelectedFileByProject.value = new Map();
+    reviewStaleProjects.value = new Set();
+  }
+
+  function openReview(options: {
+    projects: Array<{ path: string; name?: string }>;
+    mode: ReviewMode;
+    origin: ReviewOrigin;
+    commitHash?: string | null;
+  }): void {
+    const seen = new Set<string>();
+    const projects = options.projects
+      .filter((project) => project.path && !seen.has(project.path) && seen.add(project.path))
+      .map((project) => ({
+        path: project.path,
+        name: project.name ?? reviewProjectName(project.path),
+      }));
+    if (projects.length === 0) return;
+
+    reviewOpen.value = true;
+    reviewMode.value = options.mode;
+    reviewOrigin.value = options.origin;
+    reviewCommitHash.value = options.commitHash ?? null;
+    reviewProjects.value = projects;
+    reviewActiveIndex.value = 0;
+    reviewDisplayMode.value = 'sideBySide';
+    resetReviewCaches();
+    reviewLoadingFile.value = false;
+    void loadReviewProject(projects[0].path);
+  }
+
+  function openReviewFromRow(path: string, name?: string): void {
+    openReview({ projects: [{ path, name }], mode: 'unsaved', origin: 'row' });
+  }
+
+  function openReviewFromSaveChanges(paths: string[]): void {
+    openReview({
+      projects: paths.map((path) => ({ path, name: reviewProjectName(path) })),
+      mode: 'unsaved',
+      origin: 'saveChanges',
+    });
+  }
+
+  function openReviewSaved(repoPath: string, commitHash?: string | null, name?: string): void {
+    openReview({
+      projects: [{ path: repoPath, name }],
+      mode: 'save',
+      origin: 'activity',
+      commitHash: commitHash ?? null,
+    });
+  }
+
+  function closeReview(): void {
+    reviewOpen.value = false;
+    reviewProjects.value = [];
+    reviewActiveIndex.value = 0;
+    reviewCommitHash.value = null;
+    reviewDisplayMode.value = 'sideBySide';
+    reviewLoadingProject.value = false;
+    reviewLoadingFile.value = false;
+    resetReviewCaches();
+    // `reviewSaveRefs` intentionally survives: the activity log survives too.
+  }
+
+  function unavailableComparison(path: string, code: string): ProjectComparison {
+    return {
+      path,
+      name: reviewProjectName(path),
+      mode: reviewMode.value,
+      state: 'unreadable',
+      files: [],
+      summary: { fileCount: 0, addedLines: 0, removedLines: 0 },
+      saved: null,
+      error: { code },
+    };
+  }
+
+  async function loadReviewProject(path: string): Promise<void> {
+    if (!reviewOpen.value) return;
+    if (reviewComparisons.value.get(path)) return;
+
+    const requestId = ++reviewProjectRequestId;
+    reviewLoadingProject.value = true;
+    const request: ReviewProjectRequest = {
+      path,
+      mode: reviewMode.value,
+      ...(reviewCommitHash.value ? { commitHash: reviewCommitHash.value } : {}),
+    };
+
+    try {
+      const comparison = await backend.reviewProject(request);
+      if (requestId !== reviewProjectRequestId) return;
+      reviewComparisons.value = setReviewMapEntry(reviewComparisons.value, path, comparison);
+      reviewStaleProjects.value = new Set(
+        [...reviewStaleProjects.value].filter((stale) => stale !== path),
+      );
+
+      const selected = reviewSelectedFileByProject.value.get(path) ?? null;
+      const stillPresent = comparison.files.some((entry) => entry.path === selected);
+      const nextFile = stillPresent ? selected : (comparison.files[0]?.path ?? null);
+      if (nextFile !== selected) {
+        reviewSelectedFileByProject.value = setReviewMapEntry(
+          reviewSelectedFileByProject.value,
+          path,
+          nextFile,
+        );
+      }
+      if (nextFile) void loadReviewPreview(path, nextFile);
+    } catch (error) {
+      if (requestId !== reviewProjectRequestId) return;
+      reviewComparisons.value = setReviewMapEntry(
+        reviewComparisons.value,
+        path,
+        unavailableComparison(path, String(error)),
+      );
+    } finally {
+      if (requestId === reviewProjectRequestId) reviewLoadingProject.value = false;
+    }
+  }
+
+  async function loadReviewPreview(projectPath: string, filePath: string): Promise<void> {
+    const key = previewKey(projectPath, filePath);
+    if (reviewPreviews.value.get(key)) return;
+
+    const comparison = reviewComparisons.value.get(projectPath);
+    const entry = comparison?.files.find((file) => file.path === filePath);
+    reviewLoadingFile.value = true;
+    try {
+      const preview = await backend.reviewFile({
+        path: projectPath,
+        mode: reviewMode.value,
+        ...(reviewCommitHash.value ? { commitHash: reviewCommitHash.value } : {}),
+        filePath,
+        oldPath: entry?.oldPath ?? null,
+      });
+      reviewPreviews.value = setReviewMapEntry(reviewPreviews.value, key, preview);
+    } catch (error) {
+      const fallback: FilePreview = {
+        path: filePath,
+        oldPath: entry?.oldPath ?? null,
+        status: entry?.status ?? 'modified',
+        kind: 'text',
+        whitespaceOnly: false,
+        addedLines: entry?.addedLines ?? 0,
+        removedLines: entry?.removedLines ?? 0,
+        notice: 'missing',
+        text: {
+          rows: [],
+          truncated: false,
+          truncationReason: null,
+          raw: null,
+          language: null,
+        },
+      };
+      reviewPreviews.value = setReviewMapEntry(
+        reviewPreviews.value,
+        key,
+        fallback,
+      );
+      if (String(error)) {
+        // The stable code is surfaced by the notice mapping; no toast on a
+        // single unreadable file keeps the rest of the list usable (FR-013).
+      }
+    } finally {
+      reviewLoadingFile.value = false;
+    }
+  }
+
+  function setReviewSelectedFile(projectPath: string, filePath: string | null): void {
+    reviewSelectedFileByProject.value = setReviewMapEntry(
+      reviewSelectedFileByProject.value,
+      projectPath,
+      filePath,
+    );
+    if (filePath) void loadReviewPreview(projectPath, filePath);
+  }
+
+  function selectReviewFile(filePath: string): void {
+    const project = reviewActiveProject.value;
+    if (!project) return;
+    setReviewSelectedFile(project.path, filePath);
+  }
+
+  function focusReviewProject(index: number): void {
+    if (!reviewOpen.value) return;
+    if (index < 0 || index >= reviewProjects.value.length) return;
+    reviewActiveIndex.value = index;
+    const project = reviewProjects.value[index];
+    const selected = reviewSelectedFileByProject.value.get(project.path) ?? null;
+    void loadReviewProject(project.path).then(() => {
+      if (selected && reviewComparisons.value.get(project.path)) {
+        void loadReviewPreview(project.path, selected);
+      }
+    });
+  }
+
+  function nextReviewProject(): void {
+    focusReviewProject(reviewActiveIndex.value + 1);
+  }
+
+  function prevReviewProject(): void {
+    focusReviewProject(reviewActiveIndex.value - 1);
+  }
+
+  function refreshReviewProject(): void {
+    const project = reviewActiveProject.value;
+    if (!project) return;
+    reviewComparisons.value = setReviewMapEntry(reviewComparisons.value, project.path, null);
+    const selected = reviewSelectedFileByProject.value.get(project.path) ?? null;
+    if (selected) {
+      const key = previewKey(project.path, selected);
+      const next = new Map(reviewPreviews.value);
+      next.delete(key);
+      reviewPreviews.value = next;
+    }
+    reviewStaleProjects.value = new Set(
+      [...reviewStaleProjects.value].filter((stale) => stale !== project.path),
+    );
+    void loadReviewProject(project.path);
+  }
+
+  function markReviewStale(path: string): void {
+    if (!reviewOpen.value) return;
+    if (!reviewProjects.value.some((project) => project.path === path)) return;
+    const next = new Set(reviewStaleProjects.value);
+    next.add(path);
+    reviewStaleProjects.value = next;
+  }
+
+  function saveRefFor(runId: string): SaveRef | null {
+    return reviewSaveRefs.value.get(runId) ?? null;
+  }
 
   // Session-only live scan activity (data-model E1); never persisted.
   const scanActivity = ref<ScanActivityState>(emptyScanActivity());
@@ -726,13 +1029,26 @@ export const useRepoStore = defineStore('repo', () => {
 
     for (const path of paths) {
       try {
-        results.push(await backend.commitRepoChanges(path, messages[path]));
+        const result = await backend.commitRepoChanges(path, messages[path]);
+        results.push(result);
+        if (result.success && result.runId && result.commitHash) {
+          const next = new Map(reviewSaveRefs.value);
+          next.set(result.runId, {
+            runId: result.runId,
+            repoPath: result.repoPath || path,
+            commitHash: result.commitHash,
+            savedAt: new Date().toISOString(),
+          });
+          reviewSaveRefs.value = next;
+        }
       } catch (error) {
         results.push({
           repoPath: path,
           success: false,
           output: '',
           error: String(error),
+          runId: null,
+          commitHash: null,
         });
       }
     }
@@ -1271,6 +1587,39 @@ export const useRepoStore = defineStore('repo', () => {
     editingGroup,
     gitSteps,
     gitLogOpen,
+    reviewOpen,
+    reviewMode,
+    reviewOrigin,
+    reviewProjects,
+    reviewActiveIndex,
+    reviewDisplayMode,
+    reviewCommitHash,
+    reviewComparisons,
+    reviewPreviews,
+    reviewSelectedFileByProject,
+    reviewStaleProjects,
+    reviewLoadingProject,
+    reviewLoadingFile,
+    reviewSaveRefs,
+    reviewActiveProject,
+    reviewActiveComparison,
+    reviewActiveSelectedFile,
+    reviewActivePreview,
+    reviewIsStale,
+    reviewFileEntries,
+    openReview,
+    openReviewFromRow,
+    openReviewFromSaveChanges,
+    openReviewSaved,
+    closeReview,
+    nextReviewProject,
+    prevReviewProject,
+    setReviewSelectedFile,
+    selectReviewFile,
+    refreshReviewProject,
+    markReviewStale,
+    loadReviewPreview,
+    saveRefFor,
     scanActivity,
     scanActivityCount,
     initialize,

@@ -318,6 +318,20 @@ pub async fn list_repo_changes(path: String) -> Vec<FileChange> {
     GitRunner::list_changes(&PathBuf::from(path)).await
 }
 
+/// Read-only project inventory for the change viewer (contracts/review-commands C2/C3).
+pub async fn review_project(
+    request: crate::review::ReviewProjectRequest,
+) -> Result<crate::review::ProjectComparison, String> {
+    crate::review::review_project(request).await
+}
+
+/// Read-only bounded preview for one file (contracts/review-commands C4/C5).
+pub async fn review_file(
+    request: crate::review::ReviewFileRequest,
+) -> Result<crate::review::FilePreview, String> {
+    crate::review::review_file(request).await
+}
+
 pub async fn commit_repo_changes(
     path: String,
     message: String,

@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Read-only change viewer for unsaved changes and saved states, opened from a
+  project row, the Save dialog, or a commit entry in the activity drawer. It
+  shows plain-language file statuses, side-by-side before/after rows with
+  collapsible unchanged stretches, unified and technical views, syntax colouring,
+  bounded image before/after previews, and plain notices for binary, oversized,
+  corrupt, unreadable, unavailable, and stale content. A successful save now
+  records its commit hash so the exact saved state can be reviewed later.
+- `review_project` / `review_file` Tauri commands and
+  `POST /api/repositories/review` / `POST /api/repositories/review-file`
+  read-only endpoints shared by desktop and web.
 - AI commit-message drafts in **Save to Git**: one Conventional Commit suggestion
   per selected project, streamed live (`commitgen:repo` / SSE `commitgen-repo`),
   editable per row, with isolated per-project failures and single-row retry.

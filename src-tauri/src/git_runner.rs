@@ -45,6 +45,165 @@ impl GitRunner {
         dot_git
     }
 
+    /// Read-only: raw stdout bytes of a Git command (viewer previews, specs/004).
+    pub async fn run_git_bytes(repo_path: &Path, args: &[&str]) -> Option<Vec<u8>> {
+        match Self::run_git_cmd(repo_path, args).await {
+            Ok(out) if out.status.success() => Some(out.stdout),
+            _ => None,
+        }
+    }
+
+    /// `git status --porcelain=v1 -z --untracked-files=all` (NUL separated).
+    pub async fn status_porcelain_z(repo_path: &Path) -> Option<Vec<u8>> {
+        Self::run_git_bytes(
+            repo_path,
+            &["status", "--porcelain=v1", "-z", "--untracked-files=all"],
+        )
+        .await
+    }
+
+    /// `git diff --name-status -z -M <base> <target>` (or worktree when target is absent).
+    pub async fn diff_name_status_z(
+        repo_path: &Path,
+        base: Option<&str>,
+        target: Option<&str>,
+    ) -> Option<Vec<u8>> {
+        let mut args = vec!["diff", "--name-status", "-z", "-M"];
+        if let Some(base) = base {
+            args.push(base);
+        }
+        if let Some(target) = target {
+            args.push(target);
+        }
+        Self::run_git_bytes(repo_path, &args).await
+    }
+
+    /// `git diff --numstat -z -M <base> <target>`.
+    pub async fn diff_numstat_z(
+        repo_path: &Path,
+        base: Option<&str>,
+        target: Option<&str>,
+    ) -> Option<Vec<u8>> {
+        let mut args = vec!["diff", "--numstat", "-z", "-M"];
+        if let Some(base) = base {
+            args.push(base);
+        }
+        if let Some(target) = target {
+            args.push(target);
+        }
+        Self::run_git_bytes(repo_path, &args).await
+    }
+
+    /// `git diff --unified=0` for one path, with external drivers disabled.
+    pub async fn diff_unified0(
+        repo_path: &Path,
+        base: Option<&str>,
+        target: Option<&str>,
+        paths: &[&str],
+    ) -> Option<String> {
+        let mut args = vec![
+            "diff",
+            "--no-color",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--unified=0",
+            "-M",
+        ];
+        if let Some(base) = base {
+            args.push(base);
+        }
+        if let Some(target) = target {
+            args.push(target);
+        }
+        args.push("--");
+        args.extend_from_slice(paths);
+        Self::run_git_stdout(repo_path, &args).await
+    }
+
+    /// `git show <rev>:<path>` as raw bytes.
+    pub async fn show_bytes(repo_path: &Path, rev_path: &str) -> Option<Vec<u8>> {
+        Self::run_git_bytes(repo_path, &["show", rev_path]).await
+    }
+
+    /// `git cat-file -s <rev>:<path>` — object size without materialising it.
+    pub async fn cat_file_size(repo_path: &Path, rev_path: &str) -> Option<u64> {
+        Self::run_git_stdout(repo_path, &["cat-file", "-s", rev_path])
+            .await
+            .and_then(|value| value.trim().parse().ok())
+    }
+
+    /// `git rev-parse <rev>` (trimmed).
+    #[allow(dead_code)]
+    pub async fn rev_parse(repo_path: &Path, rev: &str) -> Option<String> {
+        Self::run_git_stdout(repo_path, &["rev-parse", rev]).await
+    }
+
+    /// `git rev-parse --verify <rev>^{commit}`.
+    pub async fn rev_parse_verify_commit(repo_path: &Path, rev: &str) -> Option<String> {
+        let spec = format!("{rev}^{{commit}}");
+        Self::run_git_stdout(repo_path, &["rev-parse", "--verify", &spec]).await
+    }
+
+    /// `git rev-parse HEAD` — the commit a save just produced.
+    pub async fn rev_parse_head(repo_path: &Path) -> Option<String> {
+        Self::run_git_stdout(repo_path, &["rev-parse", "HEAD"]).await
+    }
+
+    /// `git rev-list --parents -n 1 <rev>`; empty when the revision is unknown.
+    pub async fn rev_list_parents(repo_path: &Path, rev: &str) -> Option<Vec<String>> {
+        Self::run_git_stdout(repo_path, &["rev-list", "--parents", "-n", "1", rev])
+            .await
+            .map(|line| line.split_whitespace().map(str::to_string).collect())
+    }
+
+    /// `git show -s --format=%s%x00%ct <rev>` → (subject, unix timestamp).
+    pub async fn show_commit_subject_and_time(
+        repo_path: &Path,
+        rev: &str,
+    ) -> Option<(String, i64)> {
+        let output =
+            Self::run_git_stdout(repo_path, &["show", "-s", "--format=%s%x00%ct", rev]).await?;
+        let (subject, timestamp) = output.split_once('\0')?;
+        Some((subject.to_string(), timestamp.trim().parse().ok()?))
+    }
+
+    /// True when the whitespace-insensitive diff between the revisions is empty.
+    pub async fn diff_quiet_ignore_space(
+        repo_path: &Path,
+        base: Option<&str>,
+        target: Option<&str>,
+        path: &str,
+    ) -> bool {
+        let mut args = vec![
+            "diff",
+            "--ignore-all-space",
+            "--ignore-blank-lines",
+            "--quiet",
+        ];
+        if let Some(base) = base {
+            args.push(base);
+        }
+        if let Some(target) = target {
+            args.push(target);
+        }
+        args.push("--");
+        args.push(path);
+        match Self::run_git_cmd(repo_path, &args).await {
+            Ok(out) => out.status.success(),
+            Err(_) => false,
+        }
+    }
+
+    /// The well-known empty tree, used as the parent of a root commit.
+    pub fn empty_tree() -> &'static str {
+        "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+    }
+
+    /// Public read-only view of the in-progress Git operation.
+    pub fn operation_state(repo_path: &Path) -> String {
+        Self::detect_operation_state(repo_path)
+    }
+
     pub async fn get_repo_state(repo_path: &Path) -> GitRepoState {
         let (raw_branch, (modified, untracked, staged, conflicts), (hash, message), remotes) = tokio::join!(
             Self::get_current_branch(repo_path),
@@ -464,12 +623,17 @@ impl GitRunner {
         }
 
         match failure {
-            Some(error) => failure_result(repo_path, error, output),
+            Some(error) => OperationResult {
+                run_id: Some(run_id),
+                ..failure_result(repo_path, error, output)
+            },
             None => OperationResult {
                 repo_path: repo_path.to_string_lossy().to_string(),
                 success: true,
                 output,
                 error: None,
+                run_id: Some(run_id),
+                commit_hash: None,
             },
         }
     }
@@ -525,7 +689,11 @@ impl GitRunner {
             repo_path,
             auto_stash: true,
         };
-        Self::execute_macro(repo_path, "commit", &ctx, observer).await
+        let mut result = Self::execute_macro(repo_path, "commit", &ctx, observer).await;
+        if result.success {
+            result.commit_hash = Self::rev_parse_head(repo_path).await;
+        }
+        result
     }
 
     pub async fn checkout_branch(
@@ -541,6 +709,8 @@ impl GitRunner {
                 success: true,
                 output: format!("Already on branch '{}'.", branch),
                 error: None,
+                run_id: None,
+                commit_hash: None,
             };
         }
 
@@ -639,6 +809,8 @@ fn failure_result(repo_path: &Path, error: impl Into<String>, output: String) ->
         success: false,
         output,
         error: Some(error.into()),
+        run_id: None,
+        commit_hash: None,
     }
 }
 
