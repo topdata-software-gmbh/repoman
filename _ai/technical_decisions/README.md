@@ -13,3 +13,4 @@ Architecture Decision Records for RepoMan.
 - [ADR__261030-4__typed-event-bus-for-desktop-and-web.md](ADR__261030-4__typed-event-bus-for-desktop-and-web.md) — Typed application event bus shared by desktop events and one SSE endpoint.
 - [ADR__261031-1__app-owned-translations-and-dictionary-free-kit.md](ADR__261031-1__app-owned-translations-and-dictionary-free-kit.md) — App-owned translations with a dictionary-free UI kit.
 - [ADR__261101-1__scan-progress-streaming-over-typed-event-bus.md](ADR__261101-1__scan-progress-streaming-over-typed-event-bus.md) — Stream scan progress (started/found/tick/inspected/done) over the typed event bus.
+- [ADR__261119-1__plain-language-base-with-git-wording-overlay.md](ADR__261119-1__plain-language-base-with-git-wording-overlay.md) — Plain-language base copy with a personal Git-wording overlay.
