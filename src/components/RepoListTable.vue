@@ -12,8 +12,9 @@ import {
 } from 'lucide-vue-next';
 import { TdBadge, TdButton, TdSpinner } from '@topdata-software-gmbh/ui-kit-web-vue3';
 import { useRepoStore } from '../stores/repoStore';
-import { t } from '../lib/i18n';
+import { operationHint, t } from '../lib/i18n';
 import { branchLabel, statusBadges } from '../lib/repoStatus';
+import OperationHint from './OperationHint.vue';
 import type { Repository } from '../types/domain';
 
 const props = withDefaults(
@@ -50,6 +51,12 @@ async function runAction(repo: Repository, action: 'pull' | 'push'): Promise<voi
 
 function isRowBusy(repo: Repository): boolean {
   return refreshing.value === repo.path || pendingAction.value?.path === repo.path;
+}
+
+function saveButtonHint(repo: Repository): string {
+  return repo.state.hasConflicts
+    ? t('table.reviewConflictsHint')
+    : operationHint('table.saveHint', 'commit');
 }
 </script>
 
@@ -148,55 +155,65 @@ function isRowBusy(repo: Repository): boolean {
                 <span>{{ t('review.rowAction') }}</span>
               </TdButton>
 
-              <TdButton
-                v-if="!repo.state.isClean"
-                variant="ghost"
-                size="sm"
-                :disabled="store.isLoading"
-                :title="
-                  repo.state.hasConflicts
-                    ? t('table.reviewConflictsHint')
-                    : t('table.saveHint')
-                "
-                @click="store.openSaveChanges([repo.path])"
-              >
-                <template #icon-left><Save /></template>
-                <span>{{ repo.state.hasConflicts ? t('table.review') : t('table.save') }}</span>
-              </TdButton>
+              <OperationHint v-if="!repo.state.isClean" :hint="saveButtonHint(repo)">
+                <template #default="{ describedBy, title }">
+                  <TdButton
+                    variant="ghost"
+                    size="sm"
+                    :disabled="store.isLoading"
+                    :aria-describedby="describedBy"
+                    :title="title"
+                    @click="store.openSaveChanges([repo.path])"
+                  >
+                    <template #icon-left><Save /></template>
+                    <span>{{ repo.state.hasConflicts ? t('table.review') : t('table.save') }}</span>
+                  </TdButton>
+                </template>
+              </OperationHint>
 
               <template v-if="props.actions === 'browse'">
-                <TdButton
-                  variant="ghost"
-                  size="sm"
-                  :disabled="!repo.isAccessible || store.isLoading || isRowBusy(repo)"
-                  :aria-label="t('table.getLatestFor', { name: repo.name })"
-                  :title="t('table.getLatestForHint')"
-                  @click="runAction(repo, 'pull')"
-                >
-                  <template #icon-left>
-                    <TdSpinner
-                      v-if="pendingAction?.path === repo.path && pendingAction.action === 'pull'"
+                <OperationHint :hint="operationHint('table.getLatestForHint', 'pull')">
+                  <template #default="{ describedBy, title }">
+                    <TdButton
+                      variant="ghost"
                       size="sm"
-                    />
-                    <ArrowDownToLine v-else class="text-success-fg" />
+                      :disabled="!repo.isAccessible || store.isLoading || isRowBusy(repo)"
+                      :aria-label="t('table.getLatestFor', { name: repo.name })"
+                      :aria-describedby="describedBy"
+                      :title="title"
+                      @click="runAction(repo, 'pull')"
+                    >
+                      <template #icon-left>
+                        <TdSpinner
+                          v-if="pendingAction?.path === repo.path && pendingAction.action === 'pull'"
+                          size="sm"
+                        />
+                        <ArrowDownToLine v-else class="text-success-fg" />
+                      </template>
+                    </TdButton>
                   </template>
-                </TdButton>
-                <TdButton
-                  variant="ghost"
-                  size="sm"
-                  :disabled="!repo.isAccessible || store.isLoading || isRowBusy(repo)"
-                  :aria-label="t('table.sendFor', { name: repo.name })"
-                  :title="t('table.sendForHint')"
-                  @click="runAction(repo, 'push')"
-                >
-                  <template #icon-left>
-                    <TdSpinner
-                      v-if="pendingAction?.path === repo.path && pendingAction.action === 'push'"
+                </OperationHint>
+                <OperationHint :hint="operationHint('table.sendForHint', 'push')">
+                  <template #default="{ describedBy, title }">
+                    <TdButton
+                      variant="ghost"
                       size="sm"
-                    />
-                    <Upload v-else class="text-info-fg" />
+                      :disabled="!repo.isAccessible || store.isLoading || isRowBusy(repo)"
+                      :aria-label="t('table.sendFor', { name: repo.name })"
+                      :aria-describedby="describedBy"
+                      :title="title"
+                      @click="runAction(repo, 'push')"
+                    >
+                      <template #icon-left>
+                        <TdSpinner
+                          v-if="pendingAction?.path === repo.path && pendingAction.action === 'push'"
+                          size="sm"
+                        />
+                        <Upload v-else class="text-info-fg" />
+                      </template>
+                    </TdButton>
                   </template>
-                </TdButton>
+                </OperationHint>
               </template>
 
               <TdButton

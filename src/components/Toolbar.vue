@@ -21,7 +21,8 @@ import {
   TdSelect,
   TdSpinner,
 } from '@topdata-software-gmbh/ui-kit-web-vue3';
-import { t, tPlural } from '../lib/i18n';
+import { t, tPlural, operationHint } from '../lib/i18n';
+import OperationHint from './OperationHint.vue';
 import { useRepoStore } from '../stores/repoStore';
 
 const store = useRepoStore();
@@ -147,45 +148,60 @@ async function runAction(
     </div>
 
     <div class="flex flex-wrap items-center gap-1.5">
-      <TdButton
-        variant="primary"
-        size="sm"
-        :disabled="busy || dirtyCount === 0"
-        :title="t('toolbar.saveHint')"
-        @click="store.openSaveChanges()"
-      >
-        <template #icon-left><Save /></template>
-        <span>{{ t('toolbar.saveToGit') }}</span>
-        <TdBadge v-if="dirtyCount > 0" variant="neutral">{{ dirtyCount }}</TdBadge>
-      </TdButton>
-
-      <TdButton
-        variant="secondary"
-        size="sm"
-        :disabled="busy || store.filteredRepositories.length === 0"
-        :title="t('toolbar.getLatestHint')"
-        @click="runAction('pull')"
-      >
-        <template #icon-left>
-          <TdSpinner v-if="activeAction === 'pull'" size="sm" />
-          <ArrowDownToLine v-else class="text-success-fg" />
+      <OperationHint :hint="operationHint('toolbar.saveHint', 'commit')">
+        <template #default="{ describedBy, title }">
+          <TdButton
+            variant="primary"
+            size="sm"
+            :disabled="busy || dirtyCount === 0"
+            :aria-describedby="describedBy"
+            :title="title"
+            @click="store.openSaveChanges()"
+          >
+            <template #icon-left><Save /></template>
+            <span>{{ t('toolbar.saveToGit') }}</span>
+            <TdBadge v-if="dirtyCount > 0" variant="neutral">{{ dirtyCount }}</TdBadge>
+          </TdButton>
         </template>
-        <span>{{ t('toolbar.getLatest') }}</span>
-      </TdButton>
+      </OperationHint>
 
-      <TdButton
-        variant="secondary"
-        size="sm"
-        :disabled="busy || store.filteredRepositories.length === 0"
-        :title="t('toolbar.sendHint')"
-        @click="runAction('push')"
-      >
-        <template #icon-left>
-          <TdSpinner v-if="activeAction === 'push'" size="sm" />
-          <Upload v-else class="text-info-fg" />
+      <OperationHint :hint="operationHint('toolbar.getLatestHint', 'pull')">
+        <template #default="{ describedBy, title }">
+          <TdButton
+            variant="secondary"
+            size="sm"
+            :disabled="busy || store.filteredRepositories.length === 0"
+            :aria-describedby="describedBy"
+            :title="title"
+            @click="runAction('pull')"
+          >
+            <template #icon-left>
+              <TdSpinner v-if="activeAction === 'pull'" size="sm" />
+              <ArrowDownToLine v-else class="text-success-fg" />
+            </template>
+            <span>{{ t('toolbar.getLatest') }}</span>
+          </TdButton>
         </template>
-        <span>{{ t('toolbar.sendChanges') }}</span>
-      </TdButton>
+      </OperationHint>
+
+      <OperationHint :hint="operationHint('toolbar.sendHint', 'push')">
+        <template #default="{ describedBy, title }">
+          <TdButton
+            variant="secondary"
+            size="sm"
+            :disabled="busy || store.filteredRepositories.length === 0"
+            :aria-describedby="describedBy"
+            :title="title"
+            @click="runAction('push')"
+          >
+            <template #icon-left>
+              <TdSpinner v-if="activeAction === 'push'" size="sm" />
+              <Upload v-else class="text-info-fg" />
+            </template>
+            <span>{{ t('toolbar.sendChanges') }}</span>
+          </TdButton>
+        </template>
+      </OperationHint>
 
       <TdMenu :aria-label="t('toolbar.moreGitActions')">
         <template #trigger="{ open }">
@@ -205,7 +221,7 @@ async function runAction(
         >
           <template #icon><RefreshCw /></template>
           {{ t('toolbar.checkForUpdates') }}
-          <template #description>{{ t('toolbar.checkForUpdatesHint') }}</template>
+          <template #description>{{ operationHint('toolbar.checkForUpdatesHint', 'fetch') }}</template>
         </TdMenuItem>
         <TdMenuItem
           :disabled="busy || store.filteredRepositories.length === 0"
@@ -213,7 +229,7 @@ async function runAction(
         >
           <template #icon><Archive /></template>
           {{ t('toolbar.setAside') }}
-          <template #description>{{ t('toolbar.setAsideHint') }}</template>
+          <template #description>{{ operationHint('toolbar.setAsideHint', 'stash') }}</template>
         </TdMenuItem>
         <TdMenuItem
           :disabled="busy || store.filteredRepositories.length === 0"
@@ -221,7 +237,7 @@ async function runAction(
         >
           <template #icon><ArchiveRestore /></template>
           {{ t('toolbar.bringBack') }}
-          <template #description>{{ t('toolbar.bringBackHint') }}</template>
+          <template #description>{{ operationHint('toolbar.bringBackHint', 'stash pop') }}</template>
         </TdMenuItem>
         <TdMenuItem :disabled="busy" @select="store.scanRepositories">
           <template #icon><FolderSearch /></template>

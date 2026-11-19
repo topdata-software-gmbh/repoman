@@ -46,6 +46,12 @@ export const de: Record<MessageKey, string> = {
   'sidebar.runSetupAgain': 'Einrichtung erneut starten',
   'sidebar.howThisWorks': "So funktioniert's",
   'sidebar.changeLanguage': 'Sprache ändern',
+  'sidebar.changeWording': 'Formulierung ändern',
+  'wording.plain': 'Einfache Sprache',
+  'wording.git': 'Git-Fachbegriffe',
+  'wording.plainShort': 'Einfach',
+  'wording.gitShort': 'Git',
+  'wording.current': 'Aktuell',
   'sidebar.confirmRemoveFolder':
     'Nicht mehr nach Projekten in „{path}“ suchen? Deine Projekte und Dateien bleiben genau, wo sie sind.',
 

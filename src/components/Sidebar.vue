@@ -19,6 +19,7 @@ import {
 import { groupColorStyle } from '../lib/groupDefaults';
 import { language, setLanguage, t } from '../lib/i18n';
 import { useRepoStore } from '../stores/repoStore';
+import WordingSwitcher from './WordingSwitcher.vue';
 import type { RepoGroup } from '../types/domain';
 
 const store = useRepoStore();
@@ -242,6 +243,8 @@ function scanChipLabel(): string {
           :aria-label="t('sidebar.changeLanguage')"
           @update:model-value="chooseLanguage"
         />
+
+        <WordingSwitcher />
 
         <TdButton
           variant="ghost"

@@ -5,6 +5,8 @@ import {
   filterAllRepos,
   matchesStatus,
 } from '../repoFilters';
+import { t, setLanguage } from '../i18n';
+import { setWording } from '../i18n/wording';
 import type { RepoGroup, Repository } from '../../types/domain';
 
 function makeRepo(overrides: Partial<Repository> = {}): Repository {
@@ -196,5 +198,20 @@ describe('countByStatus', () => {
     expect(countByStatus(repos, 'upToDate')).toBe(1);
     expect(countByStatus(repos, 'changesNotSaved')).toBe(1);
     expect(countByStatus(repos, 'localOnly')).toBe(1);
+  });
+});
+
+describe('status filter labels', () => {
+  it('uses Git filter labels in Git mode and restores plain labels', () => {
+    setLanguage('en');
+    setWording('git');
+    expect(t('filters.changesNotSaved')).toBe('Uncommitted changes');
+    expect(t('filters.updatesAvailable')).toBe('Behind');
+    expect(t('filters.toSend')).toBe('Ahead');
+
+    setWording('plain');
+    expect(t('filters.changesNotSaved')).toBe('Changes not saved');
+    expect(t('filters.updatesAvailable')).toBe('Updates available');
+    expect(t('filters.toSend')).toBe('To send');
   });
 });

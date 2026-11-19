@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Personal plain-language / Git wording preference beside the language switcher,
+  stored per device under `topdata.wording.v1`. Plain stays the default; Git
+  terminology is a typed overlay for operation labels, dialog titles, toasts,
+  badges, filters, the glossary, onboarding headings and insight actions, and
+  switches live without a reload. Plain operation hints now also reveal the
+  matching command, for example `(git commit)`, on hover and keyboard focus via
+  `aria-describedby`.
 - Read-only change viewer for unsaved changes and saved states, opened from a
   project row, the Save dialog, or a commit entry in the activity drawer. It
   shows plain-language file statuses, side-by-side before/after rows with

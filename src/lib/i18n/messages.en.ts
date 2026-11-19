@@ -47,6 +47,12 @@ export const en = {
   'sidebar.runSetupAgain': 'Run setup again',
   'sidebar.howThisWorks': 'How this works',
   'sidebar.changeLanguage': 'Change language',
+  'sidebar.changeWording': 'Change wording',
+  'wording.plain': 'Plain language',
+  'wording.git': 'Git terminology',
+  'wording.plainShort': 'Plain',
+  'wording.gitShort': 'Git',
+  'wording.current': 'Current',
   'sidebar.confirmRemoveFolder':
     'Stop looking for projects in "{path}"? Your projects and files stay exactly where they are.',
 
